@@ -7,32 +7,177 @@ datasource db {
   provider = "postgresql"
 }
 
+// ──────────────────────────────────────────────
+// Enums
+// ──────────────────────────────────────────────
+
+enum UserRole {
+  SUPER_ADMIN
+  ADMIN
+  MANAGER
+  CLIENT
+  VENDOR
+}
+
+enum QuoteStatus {
+  DRAFT
+  SENT
+  ACCEPTED
+  REJECTED
+  EXPIRED
+  CONVERTED
+}
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  IN_PRODUCTION
+  PRINTING
+  READY
+  SHIPPED
+  DELIVERED
+  CANCELLED
+}
+
+enum ProductionStatus {
+  PENDING
+  ASSIGNED
+  IN_PROGRESS
+  QC_CHECK
+  COMPLETED
+  DELAYED
+}
+
+enum PaymentMethod {
+  CASH
+  TRANSFER
+  CARD
+  STRIPE
+  MERCADOPAGO
+  OTHER
+}
+
+enum PaymentStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  REFUNDED
+  PARTIAL
+}
+
+enum InvoiceStatus {
+  DRAFT
+  ISSUED
+  PAID
+  OVERDUE
+  CANCELLED
+}
+
+enum ShipmentStatus {
+  PENDING
+  SHIPPED
+  IN_TRANSIT
+  DELIVERED
+  RETURNED
+  CANCELLED
+}
+
+enum InventoryMovementType {
+  ENTRY
+  EXIT
+  ADJUSTMENT
+  RETURN
+  CONSUMPTION
+}
+
+enum PurchaseOrderStatus {
+  DRAFT
+  SENT
+  PARTIALLY_RECEIVED
+  RECEIVED
+  CANCELLED
+}
+
+enum AddressType {
+  SHIPPING
+  BILLING
+  COMPANY
+  BRANCH
+  BOTH
+}
+
+enum NotificationType {
+  ORDER_UPDATE
+  PAYMENT_RECEIVED
+  BUDGET_EXPIRED
+  SYSTEM
+  AI_SUMMARY
+  INVENTORY_LOW
+  PRODUCTION_DELAY
+}
+
+enum FileType {
+  IMAGE
+  DOCUMENT
+  DESIGN
+  ARCHIVE
+  OTHER
+}
+
+// ──────────────────────────────────────────────
+// Auth.js models (required by @auth/prisma-adapter)
+// ──────────────────────────────────────────────
+
 model User {
-  id            String          @id @default(cuid())
-  name          String?
-  email         String          @unique
-  emailVerified DateTime?
-  image         String?
-  accounts      Account[]
-  sessions      Session[]
+  id             String        @id @default(cuid())
+  name           String?
+  email          String        @unique(map: "User_email_unique")
+  emailVerified  DateTime?
+  image          String?
+  role           UserRole      @default(CLIENT)
+  companyId      String?
+  phone          String?
+  lastLoginAt    DateTime?
+  isActive       Boolean       @default(true)
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  accounts             Account[]
+  sessions             Session[]
+  ownedCompanies       Company[]  @relation("CompanyOwner")
+  memberCompanies      Company[]  @relation("CompanyMember")
+  createdOrders        Order[]    @relation("OrderCreator")
+  assignedOrders       Order[]    @relation("OrderAssignee")
+  createdQuotes        Quote[]    @relation("QuoteCreator")
+  approvedQuotes       Quote[]    @relation("QuoteApprover")
+  createdInvoices      Invoice[]  @relation("InvoiceCreator")
+  productionJobs       ProductionJob[]
+  notifications        Notification[]
+  auditLogs            AuditLog[] @relation("AuditActor")
+  uploadedFiles       UploadedFile[]
+  inventoryMovements  InventoryMovement[]
+  purchaseOrders      PurchaseOrder[]
+  customers           Customer[]
+  branchManagerOf     Branch[]   @relation("BranchManager")
 
   @@map("User")
 }
 
 model Account {
-  id                String  @id @default(cuid())
-  userId            String
-  type              String
-  provider          String
-  providerAccountId String
-  refresh_token     String? @db.Text
-  access_token      String? @db.Text
-  expires_at        Int?
-  token_type        String?
-  scope             String?
-  id_token          String? @db.Text
-  session_state     String?
-  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id                 String  @id @default(cuid())
+  userId             String
+  type               String
+  provider           String
+  providerAccountId  String
+  refresh_token      String? @db.Text
+  access_token       String? @db.Text
+  expires_at         Int?
+  token_type         String?
+  scope              String?
+  id_token           String? @db.Text
+  session_state      String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([provider, providerAccountId])
   @@map("Account")
@@ -40,19 +185,757 @@ model Account {
 
 model Session {
   id           String   @id @default(cuid())
-  sessionToken String   @unique
+  sessionToken String   @unique(map: "Session_sessionToken_unique")
   userId       String
   expires      DateTime
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("Session")
 }
 
 model VerificationToken {
   identifier String
-  token      String   @unique
+  token      String   @unique(map: "VerificationToken_token_unique")
   expires    DateTime
 
   @@unique([identifier, token])
   @@map("VerificationToken")
+}
+
+// ──────────────────────────────────────────────
+// Role-Permission (RBAC)
+// ──────────────────────────────────────────────
+
+model RolePermission {
+  role         UserRole
+  permissionId String
+
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([role, permissionId])
+  @@map("RolePermission")
+}
+
+model Permission {
+  id          String             @id @default(cuid())
+  name        String
+  resource    String
+  action      String
+  description String?
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+
+  rolePermissions RolePermission[]
+
+  @@unique([resource, action])
+  @@map("Permission")
+}
+
+// ──────────────────────────────────────────────
+// Tenant & Identity
+// ──────────────────────────────────────────────
+
+model Company {
+  id          String   @id @default(cuid())
+  name        String
+  slug        String
+  logo        String?
+  taxId       String?
+  phone       String?
+  website     String?
+  currency    String   @default("ARS")
+  timezone    String   @default("America/Argentina/Buenos_Aires")
+  language    String   @default("es")
+  settings    Json     @default("{}")
+  plan        String   @default("free")
+  isActive    Boolean  @default(true)
+  ownerId     String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  owner          User   @relation("CompanyOwner", fields: [ownerId], references: [id])
+  users          User[] @relation("CompanyMember")
+  branches       Branch[]
+  customers      Customer[]
+  products       Product[]
+  categories     Category[]
+  quotes         Quote[]
+  orders         Order[]
+  invoices       Invoice[]
+  payments       Payment[]
+  shipments      Shipment[]
+  purchaseOrders PurchaseOrder[]
+  suppliers      Supplier[]
+  inventories    Inventory[]
+companySettings CompanySetting[]
+  companyAddresses CompanyAddress[]
+
+  @@unique([slug])
+  @@map("Company")
+}
+
+model Branch {
+  id         String   @id @default(cuid())
+  companyId  String
+  name       String
+  address    String?
+  phone      String?
+  managerId  String?
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  company        Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  manager        User?    @relation("BranchManager", fields: [managerId], references: [id])
+  orders         Order[]
+  productionJobs ProductionJob[]
+  inventories    Inventory[]
+
+  @@map("Branch")
+}
+
+// ──────────────────────────────────────────────
+// CRM — Customer
+// ──────────────────────────────────────────────
+
+model Customer {
+  id         String   @id @default(cuid())
+  companyId  String
+  userId     String?
+  name       String
+  email      String?
+  phone      String?
+  documentId String?
+  notes      String?
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  company          Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  user             User?            @relation(fields: [userId], references: [id])
+  customerAddresses CustomerAddress[]
+  quotes           Quote[]
+  orders           Order[]
+  invoices         Invoice[]
+  payments         Payment[]
+
+  @@map("Customer")
+}
+
+model Address {
+  id         String   @id @default(cuid())
+  line1      String
+  line2      String?
+  city       String
+  state      String?
+  postalCode String?
+  country    String   @default("AR")
+  isDefault  Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  customerAddresses CustomerAddress[]
+companyAddresses  CompanyAddress[]
+  shipments         Shipment[]       @relation("ShipmentAddress")
+  billingInvoices   Invoice[]        @relation("InvoiceBillingAddress")
+
+  @@map("Address")
+}
+
+model CustomerAddress {
+  customerId String
+  addressId  String
+  type       AddressType @default(SHIPPING)
+  isDefault  Boolean     @default(false)
+
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  address  Address  @relation(fields: [addressId], references: [id], onDelete: Cascade)
+
+  @@id([customerId, addressId])
+  @@map("CustomerAddress")
+}
+
+model CompanyAddress {
+  companyId String
+  addressId String
+  type      AddressType @default(COMPANY)
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  address Address @relation(fields: [addressId], references: [id], onDelete: Cascade)
+
+  @@id([companyId, addressId])
+  @@map("CompanyAddress")
+}
+
+// ──────────────────────────────────────────────
+// Catalog — Categories, Products, Variants
+// ──────────────────────────────────────────────
+
+model Category {
+  id          String   @id @default(cuid())
+  companyId   String?
+  parentId    String?
+  name        String
+  slug        String
+  description String?
+  icon        String?
+  sortOrder   Int      @default(0)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  company   Company?   @relation(fields: [companyId], references: [id])
+  parent    Category?  @relation("CategoryTree", fields: [parentId], references: [id])
+  children  Category[] @relation("CategoryTree")
+  products  Product[]
+
+  @@unique([companyId, slug])
+  @@map("Category")
+}
+
+model Product {
+  id               String   @id @default(cuid())
+  companyId        String
+  categoryId       String?
+  name             String
+  slug             String
+  description      String?
+  basePrice        Decimal  @default(0)
+  currency         String   @default("ARS")
+  unit             String   @default("units")
+  minOrderQuantity Int      @default(1)
+  images           String[] @default([])
+  isActive         Boolean  @default(true)
+  sortOrder        Int      @default(0)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  company         Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  category        Category?        @relation(fields: [categoryId], references: [id])
+  variants        ProductVariant[]
+  orderItems      OrderItem[]
+  quoteItems      QuoteItem[]
+  uploadedFiles   UploadedFile[]
+
+  @@unique([companyId, slug])
+  @@map("Product")
+}
+
+model ProductVariant {
+  id          String   @id @default(cuid())
+  productId   String
+  name        String
+  sku         String?
+  price       Decimal  @default(0)
+  attributes Json     @default("{}")
+  isActive    Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  product               Product           @relation(fields: [productId], references: [id], onDelete: Cascade)
+  orderItems            OrderItem[]
+  quoteItems            QuoteItem[]
+  inventories           Inventory[]
+  productionJobs        ProductionJob[]
+  purchaseOrderItems    PurchaseOrderItem[]
+
+  @@unique([productId, sku])
+  @@map("ProductVariant")
+}
+
+// ──────────────────────────────────────────────
+// Materials & Printing Techniques
+// ──────────────────────────────────────────────
+
+model Material {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  unit        String   @default("units")
+  basePrice   Decimal  @default(0)
+  isActive    Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  quoteItems            QuoteItem[]
+  orderItems            OrderItem[]
+  inventories           Inventory[]
+  purchaseOrderItems    PurchaseOrderItem[]
+  productionJobs        ProductionJob[]
+
+  @@map("Material")
+}
+
+model PrintingTechnique {
+  id               String   @id @default(cuid())
+  name             String
+  slug             String
+  description      String?
+  maxWidth         Decimal?
+  maxHeight        Decimal?
+  minOrderQuantity Int      @default(1)
+  isActive         Boolean  @default(true)
+  sortOrder        Int      @default(0)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  quoteItems      QuoteItem[]
+  orderItems      OrderItem[]
+  productionJobs  ProductionJob[]
+
+  @@unique([slug])
+  @@map("PrintingTechnique")
+}
+
+// ──────────────────────────────────────────────
+// Sales — Quotes (Presupuestos) → Orders (Pedidos)
+// ──────────────────────────────────────────────
+
+model Quote {
+  id           String     @id @default(cuid())
+  slug         String
+  companyId    String
+  customerId   String
+  status       QuoteStatus @default(DRAFT)
+  subtotal     Decimal    @default(0)
+  taxRate      Decimal?   @default(0)
+  taxAmount    Decimal?   @default(0)
+  totalAmount  Decimal    @default(0)
+  currency     String     @default("ARS")
+  validUntil   DateTime?
+  notes        String?
+  acceptedAt   DateTime?
+  rejectedAt   DateTime?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  createdById  String?
+  approvedById String?
+
+  company  Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  creator  User?    @relation("QuoteCreator", fields: [createdById], references: [id])
+  approver User?    @relation("QuoteApprover", fields: [approvedById], references: [id])
+  items    QuoteItem[]
+  order    Order?
+
+  @@unique([companyId, slug])
+  @@map("Quote")
+}
+
+model QuoteItem {
+  id            String   @id @default(cuid())
+  quoteId       String
+  productId     String
+  variantId     String?
+  materialId    String?
+  techniqueId   String?
+  quantity      Int      @default(1)
+  unitPrice     Decimal
+  totalPrice    Decimal
+  customization Json?
+  notes         String?
+  sortOrder     Int      @default(0)
+
+  quote       Quote                @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+  product     Product?             @relation(fields: [productId], references: [id])
+  variant     ProductVariant?      @relation(fields: [variantId], references: [id])
+  material    Material?            @relation(fields: [materialId], references: [id])
+  technique   PrintingTechnique?   @relation(fields: [techniqueId], references: [id])
+
+  @@map("QuoteItem")
+}
+
+model Order {
+  id              String      @id @default(cuid())
+  orderNumber     String
+  companyId       String
+  customerId      String
+  userId          String
+  quoteId         String?     @unique
+  branchId        String?
+  status          OrderStatus  @default(PENDING)
+  subtotal        Decimal     @default(0)
+  taxRate         Decimal?    @default(0)
+  taxAmount       Decimal?    @default(0)
+  totalAmount     Decimal     @default(0)
+  currency        String      @default("ARS")
+  shippingAddress Json?
+  notes           String?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  createdById     String?
+  assignedToId    String?
+
+  company      Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  customer     Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  creator      User?     @relation("OrderCreator", fields: [createdById], references: [id])
+  assignee     User?     @relation("OrderAssignee", fields: [assignedToId], references: [id])
+  quote        Quote?    @relation(fields: [quoteId], references: [id])
+  branch       Branch?   @relation(fields: [branchId], references: [id])
+  items        OrderItem[]
+  payment      Payment?
+  invoice      Invoice?
+  shipment     Shipment?
+  production   ProductionJob[]
+  auditLogs    AuditLog[]  @relation("OrderAudit")
+
+  @@unique([companyId, orderNumber])
+  @@map("Order")
+}
+
+model OrderItem {
+  id            String   @id @default(cuid())
+  orderId       String
+  productId     String
+  variantId     String?
+  materialId    String?
+  techniqueId   String?
+  quantity      Int      @default(1)
+  unitPrice     Decimal
+  totalPrice    Decimal
+  customization Json?
+  notes         String?
+  sortOrder     Int      @default(0)
+
+  order       Order                @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product     Product?             @relation(fields: [productId], references: [id])
+  variant     ProductVariant?      @relation(fields: [variantId], references: [id])
+  material    Material?            @relation(fields: [materialId], references: [id])
+  technique   PrintingTechnique?   @relation(fields: [techniqueId], references: [id])
+
+  @@map("OrderItem")
+}
+
+// ──────────────────────────────────────────────
+// Production Jobs
+// ──────────────────────────────────────────────
+
+model ProductionJob {
+  id             String           @id @default(cuid())
+  orderId        String
+  companyId      String
+  branchId       String?
+  variantId      String?
+  materialId     String?
+  techniqueId    String?
+  status         ProductionStatus @default(PENDING)
+  assignedToId   String?
+  quantity       Int              @default(0)
+  startedAt      DateTime?
+  estimatedEndAt DateTime?
+  completedAt    DateTime?
+  notes          String?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  order      Order               @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  branch     Branch?             @relation(fields: [branchId], references: [id])
+  assignee   User?               @relation(fields: [assignedToId], references: [id])
+  variant    ProductVariant?     @relation(fields: [variantId], references: [id])
+  material   Material?           @relation(fields: [materialId], references: [id])
+  technique  PrintingTechnique?  @relation(fields: [techniqueId], references: [id])
+
+  @@map("ProductionJob")
+}
+
+// ──────────────────────────────────────────────
+// Inventory
+// ──────────────────────────────────────────────
+
+model Inventory {
+  id               String              @id @default(cuid())
+  companyId        String
+  productVariantId String?
+  materialId       String?
+  branchId         String?
+  quantity         Int                 @default(0)
+  reserved         Int                 @default(0)
+  minStock         Int                 @default(0)
+  location         String?
+  notes            String?
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+
+  company   Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  variant   ProductVariant?   @relation(fields: [productVariantId], references: [id])
+  material  Material?          @relation(fields: [materialId], references: [id])
+  branch    Branch?            @relation(fields: [branchId], references: [id])
+  movements InventoryMovement[]
+
+  @@unique([companyId, productVariantId])
+  @@unique([companyId, materialId])
+  @@map("Inventory")
+}
+
+model InventoryMovement {
+  id              String                @id @default(cuid())
+  inventoryId     String
+  type            InventoryMovementType
+  quantity        Int
+  referenceId     String?
+  referenceType   String?
+  notes           String?
+  createdById     String?
+  createdAt       DateTime              @default(now())
+
+  inventory Inventory @relation(fields: [inventoryId], references: [id], onDelete: Cascade)
+  creator   User?     @relation(fields: [createdById], references: [id])
+
+  @@map("InventoryMovement")
+}
+
+// ──────────────────────────────────────────────
+// Purchases — Suppliers & Purchase Orders
+// ──────────────────────────────────────────────
+
+model Supplier {
+  id           String   @id @default(cuid())
+  companyId    String
+  name         String
+  contactName  String?
+  email        String?
+  phone        String?
+  documentId   String?
+  paymentTerms String?
+  isActive     Boolean  @default(true)
+  notes        String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  company          Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  purchaseOrders   PurchaseOrder[]
+
+  @@map("Supplier")
+}
+
+model PurchaseOrder {
+  id             String              @id @default(cuid())
+  poNumber       String
+  companyId      String
+  supplierId     String
+  status         PurchaseOrderStatus  @default(DRAFT)
+  subtotal       Decimal              @default(0)
+  taxRate        Decimal?             @default(0)
+  taxAmount      Decimal?             @default(0)
+  totalAmount    Decimal              @default(0)
+  expectedAt     DateTime?
+  receivedAt     DateTime?
+  notes          String?
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+  createdById    String?
+
+  company  Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  supplier Supplier         @relation(fields: [supplierId], references: [id])
+  creator  User?            @relation(fields: [createdById], references: [id])
+  items    PurchaseOrderItem[]
+
+  @@unique([companyId, poNumber])
+  @@map("PurchaseOrder")
+}
+
+model PurchaseOrderItem {
+  id                String   @id @default(cuid())
+  purchaseOrderId   String
+  productVariantId  String?
+  materialId        String?
+  quantity          Int      @default(1)
+  unitCost          Decimal
+  totalCost         Decimal
+  receivedQty       Int      @default(0)
+
+  purchaseOrder PurchaseOrder  @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+  variant       ProductVariant? @relation(fields: [productVariantId], references: [id])
+  material      Material?       @relation(fields: [materialId], references: [id])
+
+  @@map("PurchaseOrderItem")
+}
+
+// ──────────────────────────────────────────────
+// Finance — Payments & Invoices
+// ──────────────────────────────────────────────
+
+model Payment {
+  id            String        @id @default(cuid())
+  orderId       String        @unique
+  companyId     String
+  clientId      String
+  method        PaymentMethod
+  status        PaymentStatus  @default(PENDING)
+  amount        Decimal
+  currency      String         @default("ARS")
+  transactionId String?
+  reference     String?
+  paidAt        DateTime?
+  notes         String?
+  createdAt     DateTime      @default(now())
+
+  order   Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  company Company  @relation(fields: [companyId], references: [id])
+  client  Customer @relation(fields: [clientId], references: [id])
+  invoice Invoice?
+
+  @@map("Payment")
+}
+
+model Invoice {
+  id            String       @id @default(cuid())
+  invoiceNumber String
+  companyId     String
+  clientId      String
+  orderId       String?      @unique
+  paymentId     String?      @unique
+  addressId     String?
+  issueDate     DateTime
+  dueDate       DateTime?
+  status        InvoiceStatus @default(DRAFT)
+  subtotal      Decimal      @default(0)
+  taxRate       Decimal?     @default(0)
+  taxAmount     Decimal?     @default(0)
+  totalAmount   Decimal      @default(0)
+  currency      String       @default("ARS")
+  fiscalData    Json?
+  notes         String?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  createdById   String?
+
+  company     Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  client      Customer  @relation(fields: [clientId], references: [id])
+  order       Order?    @relation(fields: [orderId], references: [id])
+  payment     Payment?  @relation(fields: [paymentId], references: [id])
+  address     Address?  @relation("InvoiceBillingAddress", fields: [addressId], references: [id])
+  creator     User?     @relation("InvoiceCreator", fields: [createdById], references: [id])
+
+  @@unique([companyId, invoiceNumber])
+  @@map("Invoice")
+}
+
+// ──────────────────────────────────────────────
+// Shipping
+// ──────────────────────────────────────────────
+
+model Shipment {
+  id             String        @id @default(cuid())
+  orderId        String        @unique
+  companyId      String
+  addressId      String
+  carrier        String?
+  trackingNumber String?
+  carrierUrl     String?
+  status         ShipmentStatus @default(PENDING)
+  shippedAt      DateTime?
+  deliveredAt    DateTime?
+  notes          String?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  company Company @relation(fields: [companyId], references: [id])
+  address Address @relation("ShipmentAddress", fields: [addressId], references: [id])
+
+  @@map("Shipment")
+}
+
+// ──────────────────────────────────────────────
+// Notifications
+// ──────────────────────────────────────────────
+
+model Notification {
+  id         String          @id @default(cuid())
+  userId     String
+  type      NotificationType
+  title     String
+  message   String
+  data      Json?
+  read      Boolean         @default(false)
+  readAt    DateTime?
+  createdAt DateTime        @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("Notification")
+}
+
+// ──────────────────────────────────────────────
+// Files
+// ──────────────────────────────────────────────
+
+model UploadedFile {
+  id             String   @id @default(cuid())
+  name           String
+  originalName   String
+  mimeType       String
+  size           Int
+  url            String
+  thumbnailUrl   String?
+  fileType       FileType @default(OTHER)
+  uploadedById   String?
+  uploadedForId  String?
+  uploadedFor    String?
+  metadata       Json?
+  createdAt      DateTime @default(now())
+
+  uploader User?    @relation(fields: [uploadedById], references: [id])
+  product  Product? @relation(fields: [uploadedForId], references: [id])
+
+  @@map("UploadedFile")
+}
+
+// ──────────────────────────────────────────────
+// Audit Log
+// ──────────────────────────────────────────────
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  action    String
+  entityType String
+  entityId  String?
+  actorId   String?
+  actorRole UserRole?
+  metadata  Json?
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime @default(now())
+
+  actor User?  @relation("AuditActor", fields: [actorId], references: [id])
+  order Order? @relation("OrderAudit", fields: [entityId], references: [id])
+
+  @@index([entityType, entityId])
+  @@index([actorId])
+  @@index([createdAt])
+  @@map("AuditLog")
+}
+
+// ──────────────────────────────────────────────
+// System & Company Configuration
+// ──────────────────────────────────────────────
+
+model SystemConfig {
+  id          String @id @default(cuid())
+  key         String @unique
+  value       Json
+  label       String?
+  description String?
+  category    String?
+  updatedAt   DateTime @updatedAt
+
+  @@map("SystemConfig")
+}
+
+model CompanySetting {
+  id          String @id @default(cuid())
+  companyId   String
+  key         String
+  value       Json
+  label       String?
+  description String?
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, key])
+  @@map("CompanySetting")
 }
