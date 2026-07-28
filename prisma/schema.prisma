@@ -1,6 +1,6 @@
 generator client {
-  provider        = "prisma-client-js"
-  output          = "../../src/generated/prisma"
+  provider = "prisma-client-js"
+  output   = "../../src/generated/prisma"
 }
 
 datasource db {
@@ -8,7 +8,7 @@ datasource db {
 }
 
 // ──────────────────────────────────────────────
-// Enums
+// Enums — normalized, no duplicates, consistent naming
 // ──────────────────────────────────────────────
 
 enum UserRole {
@@ -125,61 +125,64 @@ enum FileType {
 }
 
 // ──────────────────────────────────────────────
-// Auth.js models (required by @auth/prisma-adapter)
+// Auth.js models (required by @auth/prisma-adapter, prisma v7 compatible)
 // ──────────────────────────────────────────────
 
 model User {
-  id             String        @id @default(cuid())
-  name           String?
-  email          String        @unique(map: "User_email_unique")
-  emailVerified  DateTime?
-  image          String?
-  role           UserRole      @default(CLIENT)
-  companyId      String?
-  phone          String?
-  lastLoginAt    DateTime?
-  isActive       Boolean       @default(true)
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique(map: "User_email_unique")
+  emailVerified DateTime?
+  image         String?
+  role          UserRole  @default(CLIENT)
+  companyId     String?
+  phone         String?
+  lastLoginAt   DateTime?
+  isActive      Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 
-  accounts             Account[]
-  sessions             Session[]
-  ownedCompanies       Company[]  @relation("CompanyOwner")
-  memberCompanies      Company[]  @relation("CompanyMember")
-  createdOrders        Order[]    @relation("OrderCreator")
-  assignedOrders       Order[]    @relation("OrderAssignee")
-  createdQuotes        Quote[]    @relation("QuoteCreator")
-  approvedQuotes       Quote[]    @relation("QuoteApprover")
-  createdInvoices      Invoice[]  @relation("InvoiceCreator")
-  productionJobs       ProductionJob[]
-  notifications        Notification[]
-  auditLogs            AuditLog[] @relation("AuditActor")
-  uploadedFiles       UploadedFile[]
-  inventoryMovements  InventoryMovement[]
-  purchaseOrders      PurchaseOrder[]
-  customers           Customer[]
-  branchManagerOf     Branch[]   @relation("BranchManager")
+  accounts           Account[]
+  sessions           Session[]
+  ownedCompanies     Company[]           @relation("CompanyOwner")
+  memberCompanies    Company[]           @relation("CompanyMember")
+  createdOrders      Order[]             @relation("OrderCreator")
+  assignedOrders     Order[]             @relation("OrderAssignee")
+  createdQuotes      Quote[]             @relation("QuoteCreator")
+  approvedQuotes     Quote[]             @relation("QuoteApprover")
+  createdInvoices    Invoice[]           @relation("InvoiceCreator")
+  productionJobs     ProductionJob[]
+  notifications      Notification[]
+  auditLogs          AuditLog[]          @relation("AuditActor")
+  uploadedFiles      UploadedFile[]
+  inventoryMovements InventoryMovement[]
+  purchaseOrders     PurchaseOrder[]
+  customers          Customer[]
+  managedBranches    Branch[]            @relation("BranchManager")
 
+  // ── Optimization indexes ──
+  @@index([companyId, role], map: "idx_User_company_role")
   @@map("User")
 }
 
 model Account {
-  id                 String  @id @default(cuid())
-  userId             String
-  type               String
-  provider           String
-  providerAccountId  String
-  refresh_token      String? @db.Text
-  access_token       String? @db.Text
-  expires_at         Int?
-  token_type         String?
-  scope              String?
-  id_token           String? @db.Text
-  session_state      String?
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([provider, providerAccountId])
+  @@index([userId], map: "idx_Account_userId")
   @@map("Account")
 }
 
@@ -191,6 +194,8 @@ model Session {
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@index([userId], map: "idx_Session_userId")
+  @@index([expires], map: "idx_Session_expires")
   @@map("Session")
 }
 
@@ -199,12 +204,13 @@ model VerificationToken {
   token      String   @unique(map: "VerificationToken_token_unique")
   expires    DateTime
 
-  @@unique([identifier, token])
+  @@unique([identifier, token], map: "uq_VerificationToken_identifier_token")
+  @@index([expires], map: "idx_VerificationToken_expires")
   @@map("VerificationToken")
 }
 
 // ──────────────────────────────────────────────
-// Role-Permission (RBAC)
+// RBAC — Role-Permission join table
 // ──────────────────────────────────────────────
 
 model RolePermission {
@@ -218,17 +224,17 @@ model RolePermission {
 }
 
 model Permission {
-  id          String             @id @default(cuid())
+  id          String   @id @default(cuid())
   name        String
   resource    String
   action      String
   description String?
-  createdAt   DateTime           @default(now())
-  updatedAt   DateTime           @updatedAt
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   rolePermissions RolePermission[]
 
-  @@unique([resource, action])
+  @@unique([resource, action], map: "uq_Permission_resource_action")
   @@map("Permission")
 }
 
@@ -237,61 +243,73 @@ model Permission {
 // ──────────────────────────────────────────────
 
 model Company {
-  id          String   @id @default(cuid())
-  name        String
-  slug        String
-  logo        String?
-  taxId       String?
-  phone       String?
-  website     String?
-  currency    String   @default("ARS")
-  timezone    String   @default("America/Argentina/Buenos_Aires")
-  language    String   @default("es")
-  settings    Json     @default("{}")
-  plan        String   @default("free")
-  isActive    Boolean  @default(true)
-  ownerId     String
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id        String   @id @default(cuid())
+  name      String
+  slug      String
+  logo      String?
+  taxId     String?
+  phone     String?
+  website   String?
+  currency  String   @default("ARS")
+  timezone  String   @default("America/Argentina/Buenos_Aires")
+  language  String   @default("es")
+  settings  Json     @default("{}")
+  plan      String   @default("free")
+  isActive  Boolean  @default(true)
+  ownerId   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  owner          User   @relation("CompanyOwner", fields: [ownerId], references: [id])
-  users          User[] @relation("CompanyMember")
-  branches       Branch[]
-  customers      Customer[]
-  products       Product[]
-  categories     Category[]
-  quotes         Quote[]
-  orders         Order[]
-  invoices       Invoice[]
-  payments       Payment[]
-  shipments      Shipment[]
-  purchaseOrders PurchaseOrder[]
-  suppliers      Supplier[]
-  inventories    Inventory[]
-companySettings CompanySetting[]
-  companyAddresses CompanyAddress[]
+  owner              User                @relation("CompanyOwner", fields: [ownerId], references: [id])
+  users              User[]              @relation("CompanyMember")
+  branches           Branch[]
+  customers          Customer[]
+  products           Product[]
+  categories         Category[]
+  quotes             Quote[]
+  orders             Order[]
+  invoices           Invoice[]
+  payments           Payment[]
+  shipments          Shipment[]
+  purchaseOrders     PurchaseOrder[]
+  suppliers          Supplier[]
+  inventories        Inventory[]
+  companySettings    CompanySetting[]
+  companyAddresses   CompanyAddress[]
+  auditLogs          AuditLog[]
+  materials          Material[]
+  printingTechniques PrintingTechnique[]
+  productionJobs     ProductionJob[]
+  uploadedFiles      UploadedFile[]
 
-  @@unique([slug])
+  @@unique([slug], map: "uq_Company_slug")
+  @@index([ownerId], map: "idx_Company_ownerId")
   @@map("Company")
 }
 
-model Branch {
-  id         String   @id @default(cuid())
-  companyId  String
-  name       String
-  address    String?
-  phone      String?
-  managerId  String?
-  isActive   Boolean  @default(true)
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+// ──────────────────────────────────────────────
+// Branch (Sucursal)
+// ──────────────────────────────────────────────
 
-  company        Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  manager        User?    @relation("BranchManager", fields: [managerId], references: [id])
+model Branch {
+  id        String   @id @default(cuid())
+  companyId String
+  name      String
+  address   String?
+  phone     String?
+  managerId String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  company        Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  manager        User?           @relation("BranchManager", fields: [managerId], references: [id])
   orders         Order[]
   productionJobs ProductionJob[]
   inventories    Inventory[]
 
+  @@index([companyId], map: "idx_Branch_companyId")
+  @@index([companyId, name], map: "idx_Branch_company_name")
   @@map("Branch")
 }
 
@@ -312,16 +330,23 @@ model Customer {
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
-  company          Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  user             User?            @relation(fields: [userId], references: [id])
+  company           Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  user              User?             @relation(fields: [userId], references: [id])
   customerAddresses CustomerAddress[]
-  quotes           Quote[]
-  orders           Order[]
-  invoices         Invoice[]
-  payments         Payment[]
+  quotes            Quote[]
+  orders            Order[]
+  invoices          Invoice[]
+  payments          Payment[]
 
+  @@index([companyId], map: "idx_Customer_companyId")
+  @@index([companyId, email], map: "idx_Customer_company_email")
+  @@index([companyId, documentId], map: "idx_Customer_company_documentId")
   @@map("Customer")
 }
+
+// ──────────────────────────────────────────────
+// Addresses — shared by Customer, Company, Shipment, Invoice
+// ──────────────────────────────────────────────
 
 model Address {
   id         String   @id @default(cuid())
@@ -336,9 +361,9 @@ model Address {
   updatedAt  DateTime @updatedAt
 
   customerAddresses CustomerAddress[]
-companyAddresses  CompanyAddress[]
-  shipments         Shipment[]       @relation("ShipmentAddress")
-  billingInvoices   Invoice[]        @relation("InvoiceBillingAddress")
+  companyAddresses  CompanyAddress[]
+  shipments         Shipment[]        @relation("ShipmentAddress")
+  billingInvoices   Invoice[]         @relation("InvoiceBillingAddress")
 
   @@map("Address")
 }
@@ -385,12 +410,13 @@ model Category {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  company   Company?   @relation(fields: [companyId], references: [id])
-  parent    Category?  @relation("CategoryTree", fields: [parentId], references: [id])
-  children  Category[] @relation("CategoryTree")
-  products  Product[]
+  company  Company?   @relation(fields: [companyId], references: [id])
+  parent   Category?  @relation("CategoryTree", fields: [parentId], references: [id])
+  children Category[] @relation("CategoryTree")
+  products Product[]
 
-  @@unique([companyId, slug])
+  @@unique([companyId, slug], map: "uq_Category_company_slug")
+  @@index([companyId], map: "idx_Category_companyId")
   @@map("Category")
 }
 
@@ -411,37 +437,41 @@ model Product {
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
-  company         Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  category        Category?        @relation(fields: [categoryId], references: [id])
-  variants        ProductVariant[]
-  orderItems      OrderItem[]
-  quoteItems      QuoteItem[]
-  uploadedFiles   UploadedFile[]
+  company       Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  category      Category?        @relation(fields: [categoryId], references: [id])
+  variants      ProductVariant[]
+  orderItems    OrderItem[]
+  quoteItems    QuoteItem[]
+  uploadedFiles UploadedFile[]
 
-  @@unique([companyId, slug])
+  @@unique([companyId, slug], map: "uq_Product_company_slug")
+  @@index([companyId, isActive], map: "idx_Product_company_active")
+  @@index([companyId, categoryId], map: "idx_Product_company_category")
   @@map("Product")
 }
 
 model ProductVariant {
-  id          String   @id @default(cuid())
-  productId   String
-  name        String
-  sku         String?
-  price       Decimal  @default(0)
+  id         String   @id @default(cuid())
+  productId  String
+  name       String
+  sku        String?
+  price      Decimal  @default(0)
   attributes Json     @default("{}")
-  isActive    Boolean  @default(true)
-  sortOrder   Int      @default(0)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  isActive   Boolean  @default(true)
+  sortOrder  Int      @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
-  product               Product           @relation(fields: [productId], references: [id], onDelete: Cascade)
-  orderItems            OrderItem[]
-  quoteItems            QuoteItem[]
-  inventories           Inventory[]
-  productionJobs        ProductionJob[]
-  purchaseOrderItems    PurchaseOrderItem[]
+  product            Product             @relation(fields: [productId], references: [id], onDelete: Cascade)
+  orderItems         OrderItem[]
+  quoteItems         QuoteItem[]
+  inventories        Inventory[]
+  productionJobs     ProductionJob[]
+  purchaseOrderItems PurchaseOrderItem[]
+  printingTechniques PrintingTechnique[]
 
-  @@unique([productId, sku])
+  @@unique([productId, sku], map: "uq_ProductVariant_product_sku")
+  @@index([productId], map: "idx_ProductVariant_productId")
   @@map("ProductVariant")
 }
 
@@ -451,6 +481,7 @@ model ProductVariant {
 
 model Material {
   id          String   @id @default(cuid())
+  companyId   String
   name        String
   description String?
   unit        String   @default("units")
@@ -460,17 +491,20 @@ model Material {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  quoteItems            QuoteItem[]
-  orderItems            OrderItem[]
-  inventories           Inventory[]
-  purchaseOrderItems    PurchaseOrderItem[]
-  productionJobs        ProductionJob[]
+  company            Company             @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  quoteItems         QuoteItem[]
+  orderItems         OrderItem[]
+  inventories        Inventory[]
+  purchaseOrderItems PurchaseOrderItem[]
+  productionJobs     ProductionJob[]
 
+  @@index([companyId], map: "idx_Material_companyId")
   @@map("Material")
 }
 
 model PrintingTechnique {
   id               String   @id @default(cuid())
+  companyId        String
   name             String
   slug             String
   description      String?
@@ -482,69 +516,76 @@ model PrintingTechnique {
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
-  quoteItems      QuoteItem[]
-  orderItems      OrderItem[]
-  productionJobs  ProductionJob[]
+  company        Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  variants       ProductVariant[]
+  quoteItems     QuoteItem[]
+  orderItems     OrderItem[]
+  productionJobs ProductionJob[]
 
-  @@unique([slug])
+  @@unique([companyId, slug], map: "uq_PrintingTechnique_company_slug")
+  @@index([companyId], map: "idx_PrintingTechnique_companyId")
   @@map("PrintingTechnique")
 }
 
 // ──────────────────────────────────────────────
-// Sales — Quotes (Presupuestos) → Orders (Pedidos)
+// Quotes → Orders
 // ──────────────────────────────────────────────
 
 model Quote {
-  id           String     @id @default(cuid())
+  id           String      @id @default(cuid())
   slug         String
   companyId    String
   customerId   String
   status       QuoteStatus @default(DRAFT)
-  subtotal     Decimal    @default(0)
-  taxRate      Decimal?   @default(0)
-  taxAmount    Decimal?   @default(0)
-  totalAmount  Decimal    @default(0)
-  currency     String     @default("ARS")
+  subtotal     Decimal     @default(0)
+  taxRate      Decimal?    @default(0)
+  taxAmount    Decimal?    @default(0)
+  totalAmount  Decimal     @default(0)
+  currency     String      @default("ARS")
   validUntil   DateTime?
   notes        String?
   acceptedAt   DateTime?
   rejectedAt   DateTime?
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
   createdById  String?
   approvedById String?
 
-  company  Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
-  creator  User?    @relation("QuoteCreator", fields: [createdById], references: [id])
-  approver User?    @relation("QuoteApprover", fields: [approvedById], references: [id])
+  company  Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  customer Customer    @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  creator  User?       @relation("QuoteCreator", fields: [createdById], references: [id])
+  approver User?       @relation("QuoteApprover", fields: [approvedById], references: [id])
   items    QuoteItem[]
   order    Order?
 
-  @@unique([companyId, slug])
+  @@unique([companyId, slug], map: "uq_Quote_company_slug")
+  @@index([companyId, status], map: "idx_Quote_company_status")
+  @@index([companyId, customerId], map: "idx_Quote_company_customer")
   @@map("Quote")
 }
 
 model QuoteItem {
-  id            String   @id @default(cuid())
+  id            String  @id @default(cuid())
   quoteId       String
   productId     String
   variantId     String?
   materialId    String?
   techniqueId   String?
-  quantity      Int      @default(1)
+  quantity      Int     @default(1)
   unitPrice     Decimal
   totalPrice    Decimal
   customization Json?
   notes         String?
-  sortOrder     Int      @default(0)
+  sortOrder     Int     @default(0)
 
-  quote       Quote                @relation(fields: [quoteId], references: [id], onDelete: Cascade)
-  product     Product?             @relation(fields: [productId], references: [id])
-  variant     ProductVariant?      @relation(fields: [variantId], references: [id])
-  material    Material?            @relation(fields: [materialId], references: [id])
-  technique   PrintingTechnique?   @relation(fields: [techniqueId], references: [id])
+  quote     Quote              @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+  product   Product?           @relation(fields: [productId], references: [id])
+  variant   ProductVariant?    @relation(fields: [variantId], references: [id])
+  material  Material?          @relation(fields: [materialId], references: [id])
+  technique PrintingTechnique? @relation(fields: [techniqueId], references: [id])
 
+  @@index([quoteId], map: "idx_QuoteItem_quoteId")
+  @@index([productId], map: "idx_QuoteItem_productId")
   @@map("QuoteItem")
 }
 
@@ -556,7 +597,7 @@ model Order {
   userId          String
   quoteId         String?     @unique
   branchId        String?
-  status          OrderStatus  @default(PENDING)
+  status          OrderStatus @default(PENDING)
   subtotal        Decimal     @default(0)
   taxRate         Decimal?    @default(0)
   taxAmount       Decimal?    @default(0)
@@ -569,43 +610,50 @@ model Order {
   createdById     String?
   assignedToId    String?
 
-  company      Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  customer     Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
-  creator      User?     @relation("OrderCreator", fields: [createdById], references: [id])
-  assignee     User?     @relation("OrderAssignee", fields: [assignedToId], references: [id])
-  quote        Quote?    @relation(fields: [quoteId], references: [id])
-  branch       Branch?   @relation(fields: [branchId], references: [id])
-  items        OrderItem[]
-  payment      Payment?
-  invoice      Invoice?
-  shipment     Shipment?
-  production   ProductionJob[]
-  auditLogs    AuditLog[]  @relation("OrderAudit")
+  company       Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  customer      Customer        @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  creator       User?           @relation("OrderCreator", fields: [createdById], references: [id])
+  assignee      User?           @relation("OrderAssignee", fields: [assignedToId], references: [id])
+  quote         Quote?          @relation(fields: [quoteId], references: [id])
+  branch        Branch?         @relation(fields: [branchId], references: [id])
+  items         OrderItem[]
+  payment       Payment?
+  invoice       Invoice?
+  shipment      Shipment?
+  production    ProductionJob[]
+  notifications Notification[]
+  auditLogs     AuditLog[]      @relation("OrderAudit")
 
-  @@unique([companyId, orderNumber])
+  @@unique([companyId, orderNumber], map: "uq_Order_company_number")
+  @@index([companyId, status], map: "idx_Order_company_status")
+  @@index([companyId, customerId], map: "idx_Order_company_customer")
+  @@index([companyId, createdAt], map: "idx_Order_company_createdAt")
+  @@index([companyId, branchId], map: "idx_Order_company_branch")
   @@map("Order")
 }
 
 model OrderItem {
-  id            String   @id @default(cuid())
+  id            String  @id @default(cuid())
   orderId       String
   productId     String
   variantId     String?
   materialId    String?
   techniqueId   String?
-  quantity      Int      @default(1)
+  quantity      Int     @default(1)
   unitPrice     Decimal
   totalPrice    Decimal
   customization Json?
   notes         String?
-  sortOrder     Int      @default(0)
+  sortOrder     Int     @default(0)
 
-  order       Order                @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  product     Product?             @relation(fields: [productId], references: [id])
-  variant     ProductVariant?      @relation(fields: [variantId], references: [id])
-  material    Material?            @relation(fields: [materialId], references: [id])
-  technique   PrintingTechnique?   @relation(fields: [techniqueId], references: [id])
+  order     Order              @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product   Product?           @relation(fields: [productId], references: [id])
+  variant   ProductVariant?    @relation(fields: [variantId], references: [id])
+  material  Material?          @relation(fields: [materialId], references: [id])
+  technique PrintingTechnique? @relation(fields: [techniqueId], references: [id])
 
+  @@index([orderId], map: "idx_OrderItem_orderId")
+  @@index([productId], map: "idx_OrderItem_productId")
   @@map("OrderItem")
 }
 
@@ -631,13 +679,18 @@ model ProductionJob {
   createdAt      DateTime         @default(now())
   updatedAt      DateTime         @updatedAt
 
-  order      Order               @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  branch     Branch?             @relation(fields: [branchId], references: [id])
-  assignee   User?               @relation(fields: [assignedToId], references: [id])
-  variant    ProductVariant?     @relation(fields: [variantId], references: [id])
-  material   Material?           @relation(fields: [materialId], references: [id])
-  technique  PrintingTechnique?  @relation(fields: [techniqueId], references: [id])
+  order     Order              @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  company   Company            @relation(fields: [companyId], references: [id])
+  branch    Branch?            @relation(fields: [branchId], references: [id])
+  assignee  User?              @relation(fields: [assignedToId], references: [id])
+  variant   ProductVariant?    @relation(fields: [variantId], references: [id])
+  material  Material?          @relation(fields: [materialId], references: [id])
+  technique PrintingTechnique? @relation(fields: [techniqueId], references: [id])
 
+  @@index([companyId], map: "idx_ProductionJob_companyId")
+  @@index([companyId, status], map: "idx_ProductionJob_company_status")
+  @@index([orderId], map: "idx_ProductionJob_orderId")
+  @@index([branchId], map: "idx_ProductionJob_branchId")
   @@map("ProductionJob")
 }
 
@@ -646,44 +699,47 @@ model ProductionJob {
 // ──────────────────────────────────────────────
 
 model Inventory {
-  id               String              @id @default(cuid())
+  id               String   @id @default(cuid())
   companyId        String
   productVariantId String?
   materialId       String?
   branchId         String?
-  quantity         Int                 @default(0)
-  reserved         Int                 @default(0)
-  minStock         Int                 @default(0)
+  quantity         Int      @default(0)
+  reserved         Int      @default(0)
+  minStock         Int      @default(0)
   location         String?
   notes            String?
-  createdAt        DateTime            @default(now())
-  updatedAt        DateTime            @updatedAt
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 
-  company   Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  variant   ProductVariant?   @relation(fields: [productVariantId], references: [id])
-  material  Material?          @relation(fields: [materialId], references: [id])
-  branch    Branch?            @relation(fields: [branchId], references: [id])
+  company   Company             @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  variant   ProductVariant?     @relation(fields: [productVariantId], references: [id])
+  material  Material?           @relation(fields: [materialId], references: [id])
+  branch    Branch?             @relation(fields: [branchId], references: [id])
   movements InventoryMovement[]
 
-  @@unique([companyId, productVariantId])
-  @@unique([companyId, materialId])
+  @@unique([companyId, productVariantId], map: "uq_Inventory_company_variant")
+  @@unique([companyId, materialId], map: "uq_Inventory_company_material")
+  @@index([companyId, branchId], map: "idx_Inventory_company_branch")
   @@map("Inventory")
 }
 
 model InventoryMovement {
-  id              String                @id @default(cuid())
-  inventoryId     String
-  type            InventoryMovementType
-  quantity        Int
-  referenceId     String?
-  referenceType   String?
-  notes           String?
-  createdById     String?
-  createdAt       DateTime              @default(now())
+  id            String                @id @default(cuid())
+  inventoryId   String
+  type          InventoryMovementType
+  quantity      Int
+  referenceId   String?
+  referenceType String?
+  notes         String?
+  createdById   String?
+  createdAt     DateTime              @default(now())
 
   inventory Inventory @relation(fields: [inventoryId], references: [id], onDelete: Cascade)
   creator   User?     @relation(fields: [createdById], references: [id])
 
+  @@index([inventoryId], map: "idx_InventoryMovement_inventoryId")
+  @@index([inventoryId, createdAt], map: "idx_InventoryMovement_inventory_createdAt")
   @@map("InventoryMovement")
 }
 
@@ -705,57 +761,61 @@ model Supplier {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  company          Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  purchaseOrders   PurchaseOrder[]
+  company        Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  purchaseOrders PurchaseOrder[]
 
+  @@index([companyId], map: "idx_Supplier_companyId")
   @@map("Supplier")
 }
 
 model PurchaseOrder {
-  id             String              @id @default(cuid())
-  poNumber       String
-  companyId      String
-  supplierId     String
-  status         PurchaseOrderStatus  @default(DRAFT)
-  subtotal       Decimal              @default(0)
-  taxRate        Decimal?             @default(0)
-  taxAmount      Decimal?             @default(0)
-  totalAmount    Decimal              @default(0)
-  expectedAt     DateTime?
-  receivedAt     DateTime?
-  notes          String?
-  createdAt      DateTime             @default(now())
-  updatedAt      DateTime             @updatedAt
-  createdById    String?
+  id          String              @id @default(cuid())
+  poNumber    String
+  companyId   String
+  supplierId  String
+  status      PurchaseOrderStatus @default(DRAFT)
+  subtotal    Decimal             @default(0)
+  taxRate     Decimal?            @default(0)
+  taxAmount   Decimal?            @default(0)
+  totalAmount Decimal             @default(0)
+  expectedAt  DateTime?
+  receivedAt  DateTime?
+  notes       String?
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+  createdById String?
 
-  company  Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  supplier Supplier         @relation(fields: [supplierId], references: [id])
-  creator  User?            @relation(fields: [createdById], references: [id])
+  company  Company             @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  supplier Supplier            @relation(fields: [supplierId], references: [id])
+  creator  User?               @relation(fields: [createdById], references: [id])
   items    PurchaseOrderItem[]
 
-  @@unique([companyId, poNumber])
+  @@unique([companyId, poNumber], map: "uq_PurchaseOrder_company_number")
+  @@index([companyId, status], map: "idx_PurchaseOrder_company_status")
+  @@index([companyId, supplierId], map: "idx_PurchaseOrder_company_supplier")
   @@map("PurchaseOrder")
 }
 
 model PurchaseOrderItem {
-  id                String   @id @default(cuid())
-  purchaseOrderId   String
-  productVariantId  String?
-  materialId        String?
-  quantity          Int      @default(1)
-  unitCost          Decimal
-  totalCost         Decimal
-  receivedQty       Int      @default(0)
+  id               String  @id @default(cuid())
+  purchaseOrderId  String
+  productVariantId String?
+  materialId       String?
+  quantity         Int     @default(1)
+  unitCost         Decimal
+  totalCost        Decimal
+  receivedQty      Int     @default(0)
 
-  purchaseOrder PurchaseOrder  @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+  purchaseOrder PurchaseOrder   @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
   variant       ProductVariant? @relation(fields: [productVariantId], references: [id])
   material      Material?       @relation(fields: [materialId], references: [id])
 
+  @@index([purchaseOrderId], map: "idx_PurchaseOrderItem_purchaseOrderId")
   @@map("PurchaseOrderItem")
 }
 
 // ──────────────────────────────────────────────
-// Finance — Payments & Invoices
+// Finance — Payments & Invoices (with corrected cascade rules)
 // ──────────────────────────────────────────────
 
 model Payment {
@@ -764,9 +824,9 @@ model Payment {
   companyId     String
   clientId      String
   method        PaymentMethod
-  status        PaymentStatus  @default(PENDING)
+  status        PaymentStatus @default(PENDING)
   amount        Decimal
-  currency      String         @default("ARS")
+  currency      String        @default("ARS")
   transactionId String?
   reference     String?
   paidAt        DateTime?
@@ -778,39 +838,44 @@ model Payment {
   client  Customer @relation(fields: [clientId], references: [id])
   invoice Invoice?
 
+  @@index([companyId], map: "idx_Payment_companyId")
+  @@index([companyId, clientId], map: "idx_Payment_company_client")
+  @@index([companyId, status], map: "idx_Payment_company_status")
   @@map("Payment")
 }
 
 model Invoice {
-  id            String       @id @default(cuid())
+  id            String        @id @default(cuid())
   invoiceNumber String
   companyId     String
   clientId      String
-  orderId       String?      @unique
-  paymentId     String?      @unique
+  orderId       String?       @unique
+  paymentId     String?       @unique
   addressId     String?
   issueDate     DateTime
   dueDate       DateTime?
   status        InvoiceStatus @default(DRAFT)
-  subtotal      Decimal      @default(0)
-  taxRate       Decimal?     @default(0)
-  taxAmount     Decimal?     @default(0)
-  totalAmount   Decimal      @default(0)
-  currency      String       @default("ARS")
+  subtotal      Decimal       @default(0)
+  taxRate       Decimal?      @default(0)
+  taxAmount     Decimal?      @default(0)
+  totalAmount   Decimal       @default(0)
+  currency      String        @default("ARS")
   fiscalData    Json?
   notes         String?
-  createdAt     DateTime     @default(now())
-  updatedAt     DateTime     @updatedAt
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
   createdById   String?
 
-  company     Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  client      Customer  @relation(fields: [clientId], references: [id])
-  order       Order?    @relation(fields: [orderId], references: [id])
-  payment     Payment?  @relation(fields: [paymentId], references: [id])
-  address     Address?  @relation("InvoiceBillingAddress", fields: [addressId], references: [id])
-  creator     User?     @relation("InvoiceCreator", fields: [createdById], references: [id])
+  company Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  client  Customer @relation(fields: [clientId], references: [id])
+  order   Order?   @relation(fields: [orderId], references: [id])
+  payment Payment? @relation(fields: [paymentId], references: [id])
+  address Address? @relation("InvoiceBillingAddress", fields: [addressId], references: [id])
+  creator User?    @relation("InvoiceCreator", fields: [createdById], references: [id])
 
-  @@unique([companyId, invoiceNumber])
+  @@unique([companyId, invoiceNumber], map: "uq_Invoice_company_number")
+  @@index([companyId, status], map: "idx_Invoice_company_status")
+  @@index([companyId, clientId], map: "idx_Invoice_company_client")
   @@map("Invoice")
 }
 
@@ -819,8 +884,8 @@ model Invoice {
 // ──────────────────────────────────────────────
 
 model Shipment {
-  id             String        @id @default(cuid())
-  orderId        String        @unique
+  id             String         @id @default(cuid())
+  orderId        String         @unique
   companyId      String
   addressId      String
   carrier        String?
@@ -830,83 +895,95 @@ model Shipment {
   shippedAt      DateTime?
   deliveredAt    DateTime?
   notes          String?
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
 
   order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
   company Company @relation(fields: [companyId], references: [id])
   address Address @relation("ShipmentAddress", fields: [addressId], references: [id])
 
+  @@index([companyId], map: "idx_Shipment_companyId")
+  @@index([companyId, status], map: "idx_Shipment_company_status")
   @@map("Shipment")
 }
 
 // ──────────────────────────────────────────────
-// Notifications
+// Notification
 // ──────────────────────────────────────────────
 
 model Notification {
-  id         String          @id @default(cuid())
-  userId     String
+  id        String           @id @default(cuid())
+  userId    String
   type      NotificationType
   title     String
   message   String
   data      Json?
-  read      Boolean         @default(false)
+  read      Boolean          @default(false)
   readAt    DateTime?
-  createdAt DateTime        @default(now())
+  createdAt DateTime         @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  order   Order?  @relation(fields: [orderId], references: [id])
+  orderId String?
+
+  @@index([userId, read, createdAt], map: "idx_Notification_user_read_created")
   @@map("Notification")
 }
 
 // ──────────────────────────────────────────────
-// Files
+// Uploaded Files — now with companyId for proper multitenancy isolation
 // ──────────────────────────────────────────────
 
 model UploadedFile {
-  id             String   @id @default(cuid())
-  name           String
-  originalName   String
-  mimeType       String
-  size           Int
-  url            String
-  thumbnailUrl   String?
-  fileType       FileType @default(OTHER)
-  uploadedById   String?
-  uploadedForId  String?
-  uploadedFor    String?
-  metadata       Json?
-  createdAt      DateTime @default(now())
+  id            String   @id @default(cuid())
+  companyId     String
+  name          String
+  originalName  String
+  mimeType      String
+  size          Int
+  url           String
+  thumbnailUrl  String?
+  fileType      FileType @default(OTHER)
+  uploadedById  String?
+  uploadedForId String?
+  uploadedFor   String?
+  metadata      Json?
+  createdAt     DateTime @default(now())
 
   uploader User?    @relation(fields: [uploadedById], references: [id])
   product  Product? @relation(fields: [uploadedForId], references: [id])
+  company  Company  @relation(fields: [companyId], references: [id])
 
+  @@index([companyId], map: "idx_UploadedFile_companyId")
+  @@index([companyId, uploadedById], map: "idx_UploadedFile_company_uploader")
   @@map("UploadedFile")
 }
 
 // ──────────────────────────────────────────────
-// Audit Log
+// Audit Log — now with companyId for tenant isolation
 // ──────────────────────────────────────────────
 
 model AuditLog {
-  id        String   @id @default(cuid())
-  action    String
+  id         String    @id @default(cuid())
+  companyId  String
+  action     String
   entityType String
-  entityId  String?
-  actorId   String?
-  actorRole UserRole?
-  metadata  Json?
-  ipAddress String?
-  userAgent String?
-  createdAt DateTime @default(now())
+  entityId   String?
+  actorId    String?
+  actorRole  UserRole?
+  metadata   Json?
+  ipAddress  String?
+  userAgent  String?
+  createdAt  DateTime  @default(now())
 
-  actor User?  @relation("AuditActor", fields: [actorId], references: [id])
-  order Order? @relation("OrderAudit", fields: [entityId], references: [id])
+  company Company @relation(fields: [companyId], references: [id])
+  actor   User?   @relation("AuditActor", fields: [actorId], references: [id])
+  order   Order?  @relation("OrderAudit", fields: [entityId], references: [id])
 
-  @@index([entityType, entityId])
-  @@index([actorId])
-  @@index([createdAt])
+  @@index([companyId, createdAt], map: "idx_AuditLog_company_createdAt")
+  @@index([companyId, entityType, entityId], map: "idx_AuditLog_company_entity")
+  @@index([companyId, actorId], map: "idx_AuditLog_company_actor")
   @@map("AuditLog")
 }
 
@@ -915,8 +992,8 @@ model AuditLog {
 // ──────────────────────────────────────────────
 
 model SystemConfig {
-  id          String @id @default(cuid())
-  key         String @unique
+  id          String   @id @default(cuid())
+  key         String   @unique(map: "uq_SystemConfig_key")
   value       Json
   label       String?
   description String?
@@ -927,7 +1004,7 @@ model SystemConfig {
 }
 
 model CompanySetting {
-  id          String @id @default(cuid())
+  id          String  @id @default(cuid())
   companyId   String
   key         String
   value       Json
@@ -936,6 +1013,6 @@ model CompanySetting {
 
   company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
-  @@unique([companyId, key])
+  @@unique([companyId, key], map: "uq_CompanySetting_company_key")
   @@map("CompanySetting")
 }
