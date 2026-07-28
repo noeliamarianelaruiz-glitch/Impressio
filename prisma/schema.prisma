@@ -284,6 +284,7 @@ model Company {
 
   @@unique([slug], map: "uq_Company_slug")
   @@index([ownerId], map: "idx_Company_ownerId")
+  @@index([plan], map: "idx_Company_plan")
   @@map("Company")
 }
 
@@ -308,8 +309,8 @@ model Branch {
   productionJobs ProductionJob[]
   inventories    Inventory[]
 
-  @@index([companyId], map: "idx_Branch_companyId")
   @@index([companyId, name], map: "idx_Branch_company_name")
+  @@index([managerId], map: "idx_Branch_managerId")
   @@map("Branch")
 }
 
@@ -338,9 +339,9 @@ model Customer {
   invoices          Invoice[]
   payments          Payment[]
 
-  @@index([companyId], map: "idx_Customer_companyId")
   @@index([companyId, email], map: "idx_Customer_company_email")
   @@index([companyId, documentId], map: "idx_Customer_company_documentId")
+  @@index([userId], map: "idx_Customer_userId")
   @@map("Customer")
 }
 
@@ -416,7 +417,7 @@ model Category {
   products Product[]
 
   @@unique([companyId, slug], map: "uq_Category_company_slug")
-  @@index([companyId], map: "idx_Category_companyId")
+  @@index([parentId], map: "idx_Category_parentId")
   @@map("Category")
 }
 
@@ -447,6 +448,7 @@ model Product {
   @@unique([companyId, slug], map: "uq_Product_company_slug")
   @@index([companyId, isActive], map: "idx_Product_company_active")
   @@index([companyId, categoryId], map: "idx_Product_company_category")
+  @@index([categoryId], map: "idx_Product_categoryId")
   @@map("Product")
 }
 
@@ -523,7 +525,6 @@ model PrintingTechnique {
   productionJobs ProductionJob[]
 
   @@unique([companyId, slug], map: "uq_PrintingTechnique_company_slug")
-  @@index([companyId], map: "idx_PrintingTechnique_companyId")
   @@map("PrintingTechnique")
 }
 
@@ -561,6 +562,8 @@ model Quote {
   @@unique([companyId, slug], map: "uq_Quote_company_slug")
   @@index([companyId, status], map: "idx_Quote_company_status")
   @@index([companyId, customerId], map: "idx_Quote_company_customer")
+  @@index([createdById], map: "idx_Quote_createdById")
+  @@index([approvedById], map: "idx_Quote_approvedById")
   @@map("Quote")
 }
 
@@ -586,6 +589,9 @@ model QuoteItem {
 
   @@index([quoteId], map: "idx_QuoteItem_quoteId")
   @@index([productId], map: "idx_QuoteItem_productId")
+  @@index([variantId], map: "idx_QuoteItem_variantId")
+  @@index([materialId], map: "idx_QuoteItem_materialId")
+  @@index([techniqueId], map: "idx_QuoteItem_techniqueId")
   @@map("QuoteItem")
 }
 
@@ -629,6 +635,11 @@ model Order {
   @@index([companyId, customerId], map: "idx_Order_company_customer")
   @@index([companyId, createdAt], map: "idx_Order_company_createdAt")
   @@index([companyId, branchId], map: "idx_Order_company_branch")
+  @@index([userId], map: "idx_Order_userId")
+  @@index([createdById], map: "idx_Order_createdById")
+  @@index([assignedToId], map: "idx_Order_assignedToId")
+  @@index([customerId], map: "idx_Order_customerId")
+  @@index([branchId], map: "idx_Order_branchId")
   @@map("Order")
 }
 
@@ -654,6 +665,9 @@ model OrderItem {
 
   @@index([orderId], map: "idx_OrderItem_orderId")
   @@index([productId], map: "idx_OrderItem_productId")
+  @@index([variantId], map: "idx_OrderItem_variantId")
+  @@index([materialId], map: "idx_OrderItem_materialId")
+  @@index([techniqueId], map: "idx_OrderItem_techniqueId")
   @@map("OrderItem")
 }
 
@@ -687,10 +701,14 @@ model ProductionJob {
   material  Material?          @relation(fields: [materialId], references: [id])
   technique PrintingTechnique? @relation(fields: [techniqueId], references: [id])
 
-  @@index([companyId], map: "idx_ProductionJob_companyId")
   @@index([companyId, status], map: "idx_ProductionJob_company_status")
   @@index([orderId], map: "idx_ProductionJob_orderId")
   @@index([branchId], map: "idx_ProductionJob_branchId")
+  @@index([variantId], map: "idx_ProductionJob_variantId")
+  @@index([materialId], map: "idx_ProductionJob_materialId")
+  @@index([techniqueId], map: "idx_ProductionJob_techniqueId")
+  @@index([assignedToId], map: "idx_ProductionJob_assignedToId")
+  @@index([assignedToId, status], map: "idx_ProductionJob_assignee_status")
   @@map("ProductionJob")
 }
 
@@ -721,6 +739,9 @@ model Inventory {
   @@unique([companyId, productVariantId], map: "uq_Inventory_company_variant")
   @@unique([companyId, materialId], map: "uq_Inventory_company_material")
   @@index([companyId, branchId], map: "idx_Inventory_company_branch")
+  @@index([productVariantId], map: "idx_Inventory_productVariantId")
+  @@index([materialId], map: "idx_Inventory_materialId")
+  @@index([branchId], map: "idx_Inventory_branchId")
   @@map("Inventory")
 }
 
@@ -738,8 +759,8 @@ model InventoryMovement {
   inventory Inventory @relation(fields: [inventoryId], references: [id], onDelete: Cascade)
   creator   User?     @relation(fields: [createdById], references: [id])
 
-  @@index([inventoryId], map: "idx_InventoryMovement_inventoryId")
   @@index([inventoryId, createdAt], map: "idx_InventoryMovement_inventory_createdAt")
+  @@index([createdById], map: "idx_InventoryMovement_createdById")
   @@map("InventoryMovement")
 }
 
@@ -793,6 +814,8 @@ model PurchaseOrder {
   @@unique([companyId, poNumber], map: "uq_PurchaseOrder_company_number")
   @@index([companyId, status], map: "idx_PurchaseOrder_company_status")
   @@index([companyId, supplierId], map: "idx_PurchaseOrder_company_supplier")
+  @@index([supplierId], map: "idx_PurchaseOrder_supplierId")
+  @@index([createdById], map: "idx_PurchaseOrder_createdById")
   @@map("PurchaseOrder")
 }
 
@@ -811,6 +834,8 @@ model PurchaseOrderItem {
   material      Material?       @relation(fields: [materialId], references: [id])
 
   @@index([purchaseOrderId], map: "idx_PurchaseOrderItem_purchaseOrderId")
+  @@index([productVariantId], map: "idx_PurchaseOrderItem_productVariantId")
+  @@index([materialId], map: "idx_PurchaseOrderItem_materialId")
   @@map("PurchaseOrderItem")
 }
 
@@ -838,9 +863,9 @@ model Payment {
   client  Customer @relation(fields: [clientId], references: [id])
   invoice Invoice?
 
-  @@index([companyId], map: "idx_Payment_companyId")
   @@index([companyId, clientId], map: "idx_Payment_company_client")
   @@index([companyId, status], map: "idx_Payment_company_status")
+  @@index([clientId], map: "idx_Payment_clientId")
   @@map("Payment")
 }
 
@@ -876,6 +901,8 @@ model Invoice {
   @@unique([companyId, invoiceNumber], map: "uq_Invoice_company_number")
   @@index([companyId, status], map: "idx_Invoice_company_status")
   @@index([companyId, clientId], map: "idx_Invoice_company_client")
+  @@index([addressId], map: "idx_Invoice_addressId")
+  @@index([createdById], map: "idx_Invoice_createdById")
   @@map("Invoice")
 }
 
@@ -902,8 +929,8 @@ model Shipment {
   company Company @relation(fields: [companyId], references: [id])
   address Address @relation("ShipmentAddress", fields: [addressId], references: [id])
 
-  @@index([companyId], map: "idx_Shipment_companyId")
   @@index([companyId, status], map: "idx_Shipment_company_status")
+  @@index([addressId], map: "idx_Shipment_addressId")
   @@map("Shipment")
 }
 
@@ -928,6 +955,7 @@ model Notification {
   orderId String?
 
   @@index([userId, read, createdAt], map: "idx_Notification_user_read_created")
+  @@index([orderId], map: "idx_Notification_orderId")
   @@map("Notification")
 }
 
@@ -955,8 +983,9 @@ model UploadedFile {
   product  Product? @relation(fields: [uploadedForId], references: [id])
   company  Company  @relation(fields: [companyId], references: [id])
 
-  @@index([companyId], map: "idx_UploadedFile_companyId")
   @@index([companyId, uploadedById], map: "idx_UploadedFile_company_uploader")
+  @@index([uploadedById], map: "idx_UploadedFile_uploadedById")
+  @@index([uploadedForId], map: "idx_UploadedFile_uploadedForId")
   @@map("UploadedFile")
 }
 
@@ -984,6 +1013,8 @@ model AuditLog {
   @@index([companyId, createdAt], map: "idx_AuditLog_company_createdAt")
   @@index([companyId, entityType, entityId], map: "idx_AuditLog_company_entity")
   @@index([companyId, actorId], map: "idx_AuditLog_company_actor")
+  @@index([entityId], map: "idx_AuditLog_entityId")
+  @@index([actorId], map: "idx_AuditLog_actorId")
   @@map("AuditLog")
 }
 
