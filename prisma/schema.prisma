@@ -285,6 +285,7 @@ model Company {
   @@unique([slug], map: "uq_Company_slug")
   @@index([ownerId], map: "idx_Company_ownerId")
   @@index([plan], map: "idx_Company_plan")
+  @@index([settings], type: Gin, map: "idx_Company_settings_gin")
   @@map("Company")
 }
 
@@ -474,6 +475,7 @@ model ProductVariant {
 
   @@unique([productId, sku], map: "uq_ProductVariant_product_sku")
   @@index([productId], map: "idx_ProductVariant_productId")
+  @@index([attributes], type: Gin, map: "idx_ProductVariant_attributes_gin")
   @@map("ProductVariant")
 }
 
@@ -564,6 +566,7 @@ model Quote {
   @@index([companyId, customerId], map: "idx_Quote_company_customer")
   @@index([createdById], map: "idx_Quote_createdById")
   @@index([approvedById], map: "idx_Quote_approvedById")
+  @@index([companyId, status, createdAt], map: "idx_Quote_company_status_created")
   @@map("Quote")
 }
 
@@ -592,6 +595,7 @@ model QuoteItem {
   @@index([variantId], map: "idx_QuoteItem_variantId")
   @@index([materialId], map: "idx_QuoteItem_materialId")
   @@index([techniqueId], map: "idx_QuoteItem_techniqueId")
+  @@index([customization], type: Gin, map: "idx_QuoteItem_customization_gin")
   @@map("QuoteItem")
 }
 
@@ -640,6 +644,8 @@ model Order {
   @@index([assignedToId], map: "idx_Order_assignedToId")
   @@index([customerId], map: "idx_Order_customerId")
   @@index([branchId], map: "idx_Order_branchId")
+  @@index([shippingAddress], type: Gin, map: "idx_Order_shippingAddress_gin")
+  @@index([createdAt], map: "idx_Order_createdAt")
   @@map("Order")
 }
 
@@ -668,6 +674,7 @@ model OrderItem {
   @@index([variantId], map: "idx_OrderItem_variantId")
   @@index([materialId], map: "idx_OrderItem_materialId")
   @@index([techniqueId], map: "idx_OrderItem_techniqueId")
+  @@index([customization], type: Gin, map: "idx_OrderItem_customization_gin")
   @@map("OrderItem")
 }
 
@@ -731,9 +738,9 @@ model Inventory {
   updatedAt        DateTime @updatedAt
 
   company   Company             @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  variant   ProductVariant?     @relation(fields: [productVariantId], references: [id])
-  material  Material?           @relation(fields: [materialId], references: [id])
-  branch    Branch?             @relation(fields: [branchId], references: [id])
+  variant   ProductVariant?     @relation(fields: [productVariantId], references: [id], onDelete: SetNull)
+  material  Material?           @relation(fields: [materialId], references: [id], onDelete: SetNull)
+  branch    Branch?             @relation(fields: [branchId], references: [id], onDelete: SetNull)
   movements InventoryMovement[]
 
   @@unique([companyId, productVariantId], map: "uq_Inventory_company_variant")
@@ -816,6 +823,7 @@ model PurchaseOrder {
   @@index([companyId, supplierId], map: "idx_PurchaseOrder_company_supplier")
   @@index([supplierId], map: "idx_PurchaseOrder_supplierId")
   @@index([createdById], map: "idx_PurchaseOrder_createdById")
+  @@index([companyId, status, createdAt], map: "idx_PurchaseOrder_company_status_created")
   @@map("PurchaseOrder")
 }
 
@@ -903,6 +911,7 @@ model Invoice {
   @@index([companyId, clientId], map: "idx_Invoice_company_client")
   @@index([addressId], map: "idx_Invoice_addressId")
   @@index([createdById], map: "idx_Invoice_createdById")
+  @@index([fiscalData], type: Gin, map: "idx_Invoice_fiscalData_gin")
   @@map("Invoice")
 }
 
@@ -951,11 +960,12 @@ model Notification {
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  order   Order?  @relation(fields: [orderId], references: [id])
+  order   Order?  @relation(fields: [orderId], references: [id], onDelete: SetNull)
   orderId String?
 
   @@index([userId, read, createdAt], map: "idx_Notification_user_read_created")
   @@index([orderId], map: "idx_Notification_orderId")
+  @@index([data], type: Gin, map: "idx_Notification_data_gin")
   @@map("Notification")
 }
 
@@ -986,6 +996,7 @@ model UploadedFile {
   @@index([companyId, uploadedById], map: "idx_UploadedFile_company_uploader")
   @@index([uploadedById], map: "idx_UploadedFile_uploadedById")
   @@index([uploadedForId], map: "idx_UploadedFile_uploadedForId")
+  @@index([metadata], type: Gin, map: "idx_UploadedFile_metadata_gin")
   @@map("UploadedFile")
 }
 
@@ -1015,6 +1026,7 @@ model AuditLog {
   @@index([companyId, actorId], map: "idx_AuditLog_company_actor")
   @@index([entityId], map: "idx_AuditLog_entityId")
   @@index([actorId], map: "idx_AuditLog_actorId")
+  @@index([metadata], type: Gin, map: "idx_AuditLog_metadata_gin")
   @@map("AuditLog")
 }
 
