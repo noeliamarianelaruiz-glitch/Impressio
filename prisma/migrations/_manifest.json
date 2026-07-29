@@ -1,0 +1,1 @@
+{"version":"1","migrations":[{"name":"init","checksum":"88334ff40053ef481c192da826a804b","finishedAt":"2026-07-28T23:00:00.000Z","migrationSql":"migration.sql"}]}
