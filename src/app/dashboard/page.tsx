@@ -1,5 +1,4 @@
-import { auth } from "@/auth"
-import { redirect } from "next/navigation"
+import { requireAuth } from "@/lib/auth"
 import { StatsGrid } from "@/components/dashboard/StatsGrid"
 import { QuickActions } from "@/components/dashboard/QuickActions"
 import { PageHeader } from "@/components/dashboard/PageHeader"
@@ -12,10 +11,7 @@ export const metadata = {
 }
 
 export default async function DashboardPage() {
-  const session = await auth()
-  if (!session?.user?.id) {
-    redirect("/login")
-  }
+  const session = await requireAuth()
 
   const stats = [
     {
@@ -66,36 +62,11 @@ export default async function DashboardPage() {
   ]
 
   const kanbanColumns = [
-    {
-      id: "pending",
-      title: "Pending",
-      items: [],
-      color: "bg-yellow-500",
-    },
-    {
-      id: "confirmed",
-      title: "Confirmed",
-      items: [],
-      color: "bg-blue-500",
-    },
-    {
-      id: "production",
-      title: "In Production",
-      items: [],
-      color: "bg-purple-500",
-    },
-    {
-      id: "printing",
-      title: "Printing",
-      items: [],
-      color: "bg-orange-500",
-    },
-    {
-      id: "ready",
-      title: "Ready",
-      items: [],
-      color: "bg-green-500",
-    },
+    { id: "pending", title: "Pending", items: [], color: "bg-yellow-500" },
+    { id: "confirmed", title: "Confirmed", items: [], color: "bg-blue-500" },
+    { id: "production", title: "In Production", items: [], color: "bg-purple-500" },
+    { id: "printing", title: "Printing", items: [], color: "bg-orange-500" },
+    { id: "ready", title: "Ready", items: [], color: "bg-green-500" },
   ]
 
   const recentOrders = [

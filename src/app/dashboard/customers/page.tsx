@@ -1,5 +1,4 @@
-import { auth } from "@/auth"
-import { redirect } from "next/navigation"
+import { requireAuth } from "@/lib/auth"
 import { PageHeader } from "@/components/dashboard/PageHeader"
 import { CustomerTable } from "@/components/customers/CustomerTable"
 import { EmptyState } from "@/components/dashboard/EmptyState"
@@ -10,10 +9,7 @@ export const metadata = {
 }
 
 export default async function CustomersPage() {
-  const session = await auth()
-  if (!session?.user?.id) {
-    redirect("/login")
-  }
+  await requireAuth()
 
   const customers: Array<{ id: string; name: string; email: string; company?: string; phone?: string; createdAt: string }> = []
 
@@ -26,10 +22,7 @@ export default async function CustomersPage() {
       />
       <div className="mt-6">
         {customers.length === 0 ? (
-          <EmptyState
-            title="No customers yet"
-            description="Start by adding your first customer."
-          />
+          <EmptyState title="No customers yet" description="Start by adding your first customer." />
         ) : (
           <CustomerTable customers={customers} />
         )}

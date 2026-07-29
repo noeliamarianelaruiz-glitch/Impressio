@@ -1,5 +1,4 @@
-import { auth } from "@/auth"
-import { redirect } from "next/navigation"
+import { requireAuth } from "@/lib/auth"
 import { PageHeader } from "@/components/dashboard/PageHeader"
 
 export const metadata = {
@@ -12,10 +11,7 @@ export default async function OrderDetailPage({
 }: {
   params: Promise<{ id: string }>
 }) {
-  const session = await auth()
-  if (!session?.user?.id) {
-    redirect("/login")
-  }
+  await requireAuth()
 
   const { id } = await params
 

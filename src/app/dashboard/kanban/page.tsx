@@ -1,7 +1,6 @@
-import { auth } from "@/auth"
-import { redirect } from "next/navigation"
+import { requireAuth } from "@/lib/auth"
 import { PageHeader } from "@/components/dashboard/PageHeader"
-import { KanbanBoard } from "@/components/kanban/KanbanBoard"
+import { KanbanBoard, KanbanColumnData } from "@/components/kanban/KanbanBoard"
 
 export const metadata = {
   title: "Production Pipeline",
@@ -9,42 +8,14 @@ export const metadata = {
 }
 
 export default async function KanbanPage() {
-  const session = await auth()
-  if (!session?.user?.id) {
-    redirect("/login")
-  }
+  await requireAuth()
 
-  const columns = [
-    {
-      id: "pending",
-      title: "Pending",
-      items: [],
-      color: "bg-yellow-500",
-    },
-    {
-      id: "confirmed",
-      title: "Confirmed",
-      items: [],
-      color: "bg-blue-500",
-    },
-    {
-      id: "production",
-      title: "In Production",
-      items: [],
-      color: "bg-purple-500",
-    },
-    {
-      id: "printing",
-      title: "Printing",
-      items: [],
-      color: "bg-orange-500",
-    },
-    {
-      id: "ready",
-      title: "Ready",
-      items: [],
-      color: "bg-green-500",
-    },
+  const columns: KanbanColumnData[] = [
+    { id: "pending", title: "Pending", items: [], color: "bg-yellow-500" },
+    { id: "confirmed", title: "Confirmed", items: [], color: "bg-blue-500" },
+    { id: "production", title: "In Production", items: [], color: "bg-purple-500" },
+    { id: "printing", title: "Printing", items: [], color: "bg-orange-500" },
+    { id: "ready", title: "Ready", items: [], color: "bg-green-500" },
   ]
 
   return (

@@ -1,5 +1,4 @@
-import { auth } from "@/auth"
-import { redirect } from "next/navigation"
+import { requireAuth } from "@/lib/auth"
 import Link from "next/link"
 import { PageHeader } from "@/components/dashboard/PageHeader"
 import { OrderCard } from "@/components/orders/OrderCard"
@@ -11,14 +10,9 @@ export const metadata = {
 }
 
 export default async function OrdersPage() {
-  const session = await auth()
-  if (!session?.user?.id) {
-    redirect("/login")
-  }
+  await requireAuth()
 
-  type OrderStatus = "PENDING" | "CONFIRMED" | "IN_PRODUCTION" | "PRINTING" | "READY" | "SHIPPED" | "CANCELLED"
-
-  const orders: Array<{ id: string; orderNumber: string; customerName: string; status: OrderStatus; totalAmount: string; date: string }> = []
+  const orders: Array<{ id: string; orderNumber: string; customerName: string; status: "PENDING" | "CONFIRMED" | "IN_PRODUCTION" | "PRINTING" | "READY" | "SHIPPED" | "CANCELLED"; totalAmount: string; date: string }> = []
 
   return (
     <main className="flex-1 p-4 lg:p-6">
@@ -30,10 +24,7 @@ export default async function OrdersPage() {
 
       <div className="mt-4">
         <div className="flex flex-wrap items-center gap-2">
-          <Link
-            href="/orders/new"
-            className="inline-flex items-center rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
-          >
+          <Link href="/orders/new" className="inline-flex items-center rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90">
             New Order
           </Link>
         </div>

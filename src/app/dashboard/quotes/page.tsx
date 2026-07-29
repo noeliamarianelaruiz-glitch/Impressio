@@ -1,5 +1,4 @@
-import { auth } from "@/auth"
-import { redirect } from "next/navigation"
+import { requireAuth } from "@/lib/auth"
 import { PageHeader } from "@/components/dashboard/PageHeader"
 import { EmptyState } from "@/components/dashboard/EmptyState"
 
@@ -9,10 +8,7 @@ export const metadata = {
 }
 
 export default async function QuotesPage() {
-  const session = await auth()
-  if (!session?.user?.id) {
-    redirect("/login")
-  }
+  await requireAuth()
 
   return (
     <main className="flex-1 p-4 lg:p-6">
