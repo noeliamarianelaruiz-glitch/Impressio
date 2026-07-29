@@ -1,5 +1,6 @@
 import { auth } from "@/auth"
 import { redirect } from "next/navigation"
+import Link from "next/link"
 import { PageHeader } from "@/components/dashboard/PageHeader"
 import { EmptyState } from "@/components/dashboard/EmptyState"
 
@@ -27,12 +28,12 @@ export default async function OrdersPage() {
           title="No orders yet"
           description="You haven't placed any orders yet."
           action={
-            <a
-              href="/orders/new"
-              className="inline-flex items-center rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
-            >
-              Place your first order
-            </a>
+          <Link
+                href="/orders/new"
+                className="inline-flex items-center rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+              >
+                Create Order
+              </Link>
           }
         />
       </div>

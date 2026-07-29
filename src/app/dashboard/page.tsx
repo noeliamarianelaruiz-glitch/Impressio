@@ -4,6 +4,7 @@ import { StatsGrid } from "@/components/dashboard/StatsGrid"
 import { QuickActions } from "@/components/dashboard/QuickActions"
 import { PageHeader } from "@/components/dashboard/PageHeader"
 import { DashboardCard } from "@/components/dashboard/DashboardCard"
+import { KanbanBoard } from "@/components/kanban/KanbanBoard"
 
 export const metadata = {
   title: "Dashboard",
@@ -64,16 +65,47 @@ export default async function DashboardPage() {
     { label: "New Quote", href: "/quotes/new", variant: "secondary" as const },
   ]
 
+  const kanbanColumns = [
+    {
+      id: "pending",
+      title: "Pending",
+      items: [],
+      color: "bg-yellow-500",
+    },
+    {
+      id: "confirmed",
+      title: "Confirmed",
+      items: [],
+      color: "bg-blue-500",
+    },
+    {
+      id: "production",
+      title: "In Production",
+      items: [],
+      color: "bg-purple-500",
+    },
+    {
+      id: "printing",
+      title: "Printing",
+      items: [],
+      color: "bg-orange-500",
+    },
+    {
+      id: "ready",
+      title: "Ready",
+      items: [],
+      color: "bg-green-500",
+    },
+  ]
+
   const recentOrders = [
-    { id: "1", orderNumber: "ORD-001", status: "Pending", date: "2026-07-29" },
-    { id: "2", orderNumber: "ORD-002", status: "Completed", date: "2026-07-28" },
-    { id: "3", orderNumber: "ORD-003", status: "In Progress", date: "2026-07-27" },
+    { id: "1", orderNumber: "ORD-001", customerName: "Acme Corp", status: "PENDING", totalAmount: "$1,200.00", date: "2026-07-29" },
+    { id: "2", orderNumber: "ORD-002", customerName: "TechCo", status: "PRINTING", totalAmount: "$3,400.00", date: "2026-07-28" },
   ]
 
   const recentQuotes = [
-    { id: "1", quoteNumber: "QTE-001", status: "Pending", date: "2026-07-29" },
-    { id: "2", quoteNumber: "QTE-002", status: "Accepted", date: "2026-07-25" },
-    { id: "3", quoteNumber: "QTE-003", status: "Expired", date: "2026-07-20" },
+    { id: "1", quoteNumber: "QTE-001", customerName: "Acme Corp", status: "PENDING", totalAmount: "$800.00", date: "2026-07-29" },
+    { id: "2", quoteNumber: "QTE-002", customerName: "TechCo", status: "ACCEPTED", totalAmount: "$1,500.00", date: "2026-07-25" },
   ]
 
   return (
@@ -92,46 +124,51 @@ export default async function DashboardPage() {
           <h2 className="mb-4 text-lg font-medium text-foreground">Quick Actions</h2>
           <QuickActions actions={quickActions} />
         </div>
+      </div>
 
+      <div className="mt-8">
+        <h2 className="mb-4 text-lg font-medium text-foreground">Production Pipeline</h2>
+        <KanbanBoard columns={kanbanColumns} />
+      </div>
+
+      <div className="mt-8 flex flex-col gap-6 lg:flex-row">
         <div className="flex-1">
           <h2 className="mb-4 text-lg font-medium text-foreground">Recent Orders</h2>
           <DashboardCard>
-            {recentOrders.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No recent orders</p>
-            ) : (
-              <ul className="space-y-2">
-                {recentOrders.map((order) => (
-                  <li key={order.id} className="flex items-center justify-between rounded-lg px-3 py-2 hover:bg-accent/50">
-                    <div>
-                      <p className="text-sm font-medium text-foreground">{order.orderNumber}</p>
-                      <p className="text-xs text-muted-foreground">{order.date}</p>
-                    </div>
-                    <span className="text-xs font-medium text-muted-foreground">{order.status}</span>
-                  </li>
-                ))}
-              </ul>
-            )}
+            <div className="space-y-3">
+              {recentOrders.map((order) => (
+                <div key={order.id} className="flex items-center justify-between rounded-lg px-3 py-2 hover:bg-accent/50">
+                  <div>
+                    <p className="text-sm font-medium text-foreground">{order.orderNumber}</p>
+                    <p className="text-xs text-muted-foreground">{order.customerName}</p>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className="text-sm font-medium text-foreground">{order.totalAmount}</span>
+                    <span className="text-[10px] text-muted-foreground">{order.date}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
           </DashboardCard>
         </div>
 
         <div className="flex-1">
           <h2 className="mb-4 text-lg font-medium text-foreground">Recent Quotes</h2>
           <DashboardCard>
-            {recentQuotes.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No recent quotes</p>
-            ) : (
-              <ul className="space-y-2">
-                {recentQuotes.map((quote) => (
-                  <li key={quote.id} className="flex items-center justify-between rounded-lg px-3 py-2 hover:bg-accent/50">
-                    <div>
-                      <p className="text-sm font-medium text-foreground">{quote.quoteNumber}</p>
-                      <p className="text-xs text-muted-foreground">{quote.date}</p>
-                    </div>
-                    <span className="text-xs font-medium text-muted-foreground">{quote.status}</span>
-                  </li>
-                ))}
-              </ul>
-            )}
+            <div className="space-y-3">
+              {recentQuotes.map((quote) => (
+                <div key={quote.id} className="flex items-center justify-between rounded-lg px-3 py-2 hover:bg-accent/50">
+                  <div>
+                    <p className="text-sm font-medium text-foreground">{quote.quoteNumber}</p>
+                    <p className="text-xs text-muted-foreground">{quote.customerName}</p>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className="text-sm font-medium text-foreground">{quote.totalAmount}</span>
+                    <span className="text-[10px] text-muted-foreground">{quote.date}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
           </DashboardCard>
         </div>
       </div>
