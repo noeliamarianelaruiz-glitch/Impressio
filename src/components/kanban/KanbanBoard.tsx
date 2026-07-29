@@ -13,12 +13,13 @@ import {
 } from "@dnd-kit/core"
 import { KanbanColumn } from "@/components/kanban/KanbanColumn"
 import { KanbanCard } from "@/components/kanban/KanbanCard"
+import type { OrderStatus } from "@prisma/client"
 
 export interface KanbanItem {
   id: string
   title: string
   description?: string
-  status: string
+  status: OrderStatus
   orderNumber?: string
   customerName?: string
   priority?: "low" | "medium" | "high" | "urgent"
@@ -36,7 +37,7 @@ export interface KanbanColumnData {
 
 interface KanbanBoardProps {
   columns: KanbanColumnData[]
-  onCardMove?: (itemId: string, newStatus: string) => void
+  onCardMove?: (itemId: string, newStatus: string) => Promise<void>
   onCardClick?: (item: KanbanItem) => void
 }
 
@@ -52,7 +53,7 @@ export function KanbanBoard({ columns, onCardMove, onCardClick }: KanbanBoardPro
     setActiveId(event.active.id as string)
   }
 
-  const handleDragEnd = (event: DragEndEvent) => {
+  const handleDragEnd = async (event: DragEndEvent) => {
     setActiveId(null)
     const { active, over } = event
 
@@ -69,7 +70,7 @@ export function KanbanBoard({ columns, onCardMove, onCardClick }: KanbanBoardPro
     )
 
     if (sourceColumn && targetColumn && onCardMove) {
-      onCardMove(activeIdStr, targetColumn.id)
+      await onCardMove(activeIdStr, targetColumn.id)
     }
   }
 

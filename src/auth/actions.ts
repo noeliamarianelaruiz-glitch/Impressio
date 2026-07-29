@@ -2,6 +2,7 @@
 
 import { signIn, signOut } from "@/auth"
 import { prisma } from "@/lib/prisma"
+import { type OrderStatus } from "@prisma/client"
 import bcrypt from "bcryptjs"
 import { registerSchema, loginSchema } from "./validation"
 import { revalidatePath } from "next/cache"
@@ -80,4 +81,25 @@ export async function register(formData: FormData) {
 export async function logout() {
   await signOut({ redirectTo: "/login" })
   revalidatePath("/")
+}
+
+export async function updateOrderStatus(
+  orderId: string,
+  newStatus: OrderStatus
+) {
+  const order = await prisma.order.findUnique({
+    where: { id: orderId },
+  })
+
+  if (!order) {
+    return { error: "Order not found" }
+  }
+
+  await prisma.order.update({
+    where: { id: orderId },
+    data: { status: newStatus },
+  })
+
+  revalidatePath("/dashboard")
+  return { success: true }
 }
