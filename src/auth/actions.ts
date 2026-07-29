@@ -13,7 +13,8 @@ export async function login(formData: FormData) {
   })
 
   if (!parsed.success) {
-    return { error: "Invalid input" }
+    const firstError = parsed.error.issues[0]
+    return { error: firstError.message }
   }
 
   const result = await signIn("credentials", {
@@ -23,7 +24,7 @@ export async function login(formData: FormData) {
   })
 
   if (result?.error) {
-    return { error: result.error }
+    return { error: "Invalid email or password" }
   }
 
   revalidatePath("/dashboard")
