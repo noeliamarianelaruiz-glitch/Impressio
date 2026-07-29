@@ -32,16 +32,19 @@ export async function login(formData: FormData) {
 
 export async function register(formData: FormData) {
   const parsed = registerSchema.safeParse({
-    name: formData.get("name"),
+    firstName: formData.get("firstName"),
+    lastName: formData.get("lastName"),
     email: formData.get("email"),
     password: formData.get("password"),
+    confirmPassword: formData.get("confirmPassword"),
   })
 
   if (!parsed.success) {
-    return { error: "Invalid input" }
+    const firstError = parsed.error.issues[0]
+    return { error: firstError.message }
   }
 
-  const { name, email, password } = parsed.data
+  const { firstName, lastName, email, password } = parsed.data
 
   const existingUser = await prisma.user.findUnique({
     where: { email },
@@ -55,7 +58,8 @@ export async function register(formData: FormData) {
 
   await prisma.user.create({
     data: {
-      name,
+      firstName,
+      lastName,
       email,
       password: hashedPassword,
       role: "CLIENT",

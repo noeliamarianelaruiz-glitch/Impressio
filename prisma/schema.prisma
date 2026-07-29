@@ -130,6 +130,8 @@ enum FileType {
 model User {
   id            String    @id @default(cuid())
   name          String?
+  firstName     String
+  lastName      String
   email         String    @unique(map: "User_email_unique")
   emailVerified DateTime?
   image         String?

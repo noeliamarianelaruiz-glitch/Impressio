@@ -1,1 +1,1 @@
-{"version":"1","migrations":[{"name":"init","checksum":"88334ff40053ef481c192da826a804b","finishedAt":"2026-07-28T23:00:00.000Z","migrationSql":"migration.sql"}]}
+{"version":"1","migrations":[{"name":"init","checksum":"88334ff40053ef481c192da826a804b","finishedAt":"2026-07-28T23:00:00.000Z","migrationSql":"migration.sql"},{"name":"add_firstName_lastName_to_User","checksum":"3671adfd03a546a1359f60768d6919c4d55225febdc4500581d5e458440d8","finishedAt":"2026-07-29T00:30:00.000Z","migrationSql":"migration.sql"}]}
