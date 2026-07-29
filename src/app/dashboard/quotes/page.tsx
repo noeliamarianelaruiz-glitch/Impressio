@@ -1,10 +1,10 @@
 import { auth } from "@/auth"
 import { redirect } from "next/navigation"
-import { Breadcrumbs } from "@/components/dashboard/Breadcrumbs"
+import { PageHeader } from "@/components/dashboard/PageHeader"
 import { EmptyState } from "@/components/dashboard/EmptyState"
 
 export const metadata = {
-  title: "Quotes",
+  title: "Cotizaciones",
   description: "View and manage your quotes",
 }
 
@@ -16,14 +16,11 @@ export default async function QuotesPage() {
 
   return (
     <main className="flex-1 p-4 lg:p-6">
-      <Breadcrumbs items={[{ label: "Dashboard", href: "/dashboard" }, { label: "Quotes" }]} />
-
-      <div className="mt-6">
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">Quotes</h1>
-        <p className="mt-2 text-sm text-muted-foreground">
-          View and manage your quotes.
-        </p>
-      </div>
+      <PageHeader
+        title="Cotizaciones"
+        description="View and manage your quotes."
+        breadcrumbs={[{ label: "Dashboard", href: "/dashboard" }, { label: "Cotizaciones" }]}
+      />
 
       <div className="mt-6">
         <EmptyState

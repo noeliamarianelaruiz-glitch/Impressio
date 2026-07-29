@@ -1,10 +1,10 @@
 import { auth } from "@/auth"
 import { redirect } from "next/navigation"
-import { Breadcrumbs } from "@/components/dashboard/Breadcrumbs"
+import { PageHeader } from "@/components/dashboard/PageHeader"
 import { EmptyState } from "@/components/dashboard/EmptyState"
 
 export const metadata = {
-  title: "Orders",
+  title: "Pedidos",
   description: "View and manage your orders",
 }
 
@@ -16,14 +16,11 @@ export default async function OrdersPage() {
 
   return (
     <main className="flex-1 p-4 lg:p-6">
-      <Breadcrumbs items={[{ label: "Dashboard", href: "/dashboard" }, { label: "Orders" }]} />
-
-      <div className="mt-6">
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">Orders</h1>
-        <p className="mt-2 text-sm text-muted-foreground">
-          View and manage your orders.
-        </p>
-      </div>
+      <PageHeader
+        title="Pedidos"
+        description="View and manage your orders."
+        breadcrumbs={[{ label: "Dashboard", href: "/dashboard" }, { label: "Pedidos" }]}
+      />
 
       <div className="mt-6">
         <EmptyState
