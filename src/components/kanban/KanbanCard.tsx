@@ -1,13 +1,10 @@
 "use client"
 
 import * as React from "react"
-import { KanbanItem } from "@/components/kanban/KanbanBoard"
+import { useSortable } from "@dnd-kit/sortable"
+import { CSS } from "@dnd-kit/utilities"
 import { cn } from "@/lib/utils"
-
-interface KanbanCardProps {
-  item: KanbanItem
-  onClick?: (item: KanbanItem) => void
-}
+import { KanbanItem } from "@/components/kanban/KanbanBoard"
 
 const priorityColors = {
   low: "bg-green-500/10 text-green-500",
@@ -16,9 +13,26 @@ const priorityColors = {
   urgent: "bg-red-500/10 text-red-500",
 }
 
+interface KanbanCardProps {
+  item: KanbanItem
+  onClick?: (item: KanbanItem) => void
+}
+
 export function KanbanCard({ item, onClick }: KanbanCardProps) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.id })
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  }
+
   return (
     <button
+      ref={setNodeRef}
+      style={style}
+      {...attributes}
+      {...listeners}
       onClick={() => onClick?.(item)}
       className={cn(
         "w-full rounded-lg border border-white/10 bg-white/5 p-3 text-left transition-colors hover:bg-accent/50 dark:border-white/5 dark:bg-white/[0.03]",
@@ -30,7 +44,9 @@ export function KanbanCard({ item, onClick }: KanbanCardProps) {
       )}
       <h4 className="mt-1 text-sm font-medium text-foreground">{item.title}</h4>
       {item.description && (
-        <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{item.description}</p>
+        <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
+          {item.description}
+        </p>
       )}
       <div className="mt-3 flex flex-wrap items-center gap-2">
         {item.priority && (
@@ -44,7 +60,9 @@ export function KanbanCard({ item, onClick }: KanbanCardProps) {
           </span>
         )}
         {item.customerName && (
-          <span className="text-[10px] text-muted-foreground">{item.customerName}</span>
+          <span className="text-[10px] text-muted-foreground">
+            {item.customerName}
+          </span>
         )}
       </div>
       {item.dueDate && (

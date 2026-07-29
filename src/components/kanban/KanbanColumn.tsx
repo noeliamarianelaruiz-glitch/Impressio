@@ -1,6 +1,10 @@
 "use client"
 
 import * as React from "react"
+import {
+  SortableContext,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable"
 import { KanbanItem, KanbanColumnData } from "@/components/kanban/KanbanBoard"
 import { KanbanCard } from "@/components/kanban/KanbanCard"
 import { cn } from "@/lib/utils"
@@ -23,21 +27,23 @@ export function KanbanColumn({ column, onCardMove, onCardClick }: KanbanColumnPr
           {column.items.length}
         </span>
       </div>
-      <div className="flex flex-1 flex-col gap-2 p-3">
-        {column.items.length === 0 ? (
-          <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed border-white/10 p-4 text-sm text-muted-foreground dark:border-white/5">
-            No items
-          </div>
-        ) : (
-          column.items.map((item) => (
-            <KanbanCard
-              key={item.id}
-              item={item}
-              onClick={() => onCardClick?.(item)}
-            />
-          ))
-        )}
-      </div>
+      <SortableContext items={column.items.map((item) => item.id)} strategy={verticalListSortingStrategy}>
+        <div className="flex flex-1 flex-col gap-2 p-3">
+          {column.items.length === 0 ? (
+            <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed border-white/10 p-4 text-sm text-muted-foreground dark:border-white/5">
+              No items
+            </div>
+          ) : (
+            column.items.map((item) => (
+              <KanbanCard
+                key={item.id}
+                item={item}
+                onClick={() => onCardClick?.(item)}
+              />
+            ))
+          )}
+        </div>
+      </SortableContext>
       <div className="border-t border-white/10 p-2 dark:border-white/5">
         <button
           onClick={() => onCardMove?.(column.id, column.id)}
