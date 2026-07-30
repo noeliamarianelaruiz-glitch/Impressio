@@ -25,7 +25,7 @@ const navItems: NavItem[] = [
     ),
   },
   {
-    label: "Pedidos",
+    label: "Orders",
     href: "/dashboard/orders",
     icon: (
       <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -34,7 +34,7 @@ const navItems: NavItem[] = [
     ),
   },
   {
-    label: "Cotizaciones",
+    label: "Quotes",
     href: "/dashboard/quotes",
     icon: (
       <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -43,7 +43,16 @@ const navItems: NavItem[] = [
     ),
   },
   {
-    label: "Perfil",
+    label: "Production",
+    href: "/dashboard/production",
+    icon: (
+      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+      </svg>
+    ),
+  },
+  {
+    label: "Profile",
     href: "/dashboard/profile",
     icon: (
       <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -52,7 +61,16 @@ const navItems: NavItem[] = [
     ),
   },
   {
-    label: "Configuración",
+    label: "Customers",
+    href: "/dashboard/customers",
+    icon: (
+      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M22 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" />
+      </svg>
+    ),
+  },
+  {
+    label: "Settings",
     href: "/dashboard/settings",
     icon: (
       <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -74,7 +92,7 @@ export function Sidebar({ open, onClose }: SidebarProps) {
     await logout()
     router.push("/login")
     router.refresh()
-    toast.success("Sesión cerrada")
+    toast.success("Signed out")
   }
 
   return (
@@ -118,7 +136,7 @@ export function Sidebar({ open, onClose }: SidebarProps) {
           <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" y1="12" x2="9" y2="12" />
           </svg>
-          Cerrar sesión
+          Sign out
         </Button>
       </aside>
     </>

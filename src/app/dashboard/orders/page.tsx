@@ -4,7 +4,7 @@ import { PageHeader } from "@/components/dashboard/PageHeader"
 import { EmptyState } from "@/components/dashboard/EmptyState"
 
 export const metadata = {
-  title: "Pedidos",
+  title: "Orders",
   description: "View and manage your orders",
 }
 
@@ -14,9 +14,9 @@ export default async function OrdersPage() {
   return (
     <main className="flex-1 p-4 lg:p-6">
       <PageHeader
-        title="Pedidos"
+        title="Orders"
         description="View and manage your orders."
-        breadcrumbs={[{ label: "Dashboard", href: "/dashboard" }, { label: "Pedidos" }]}
+        breadcrumbs={[{ label: "Dashboard", href: "/dashboard" }, { label: "Orders" }]}
       />
 
       <div className="mt-6">

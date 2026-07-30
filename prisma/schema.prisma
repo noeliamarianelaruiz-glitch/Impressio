@@ -47,6 +47,16 @@ enum ProductionStatus {
   DELAYED
 }
 
+enum ProductionTaskStatus {
+  PENDING
+  DESIGN_REVIEW
+  PRINTING
+  SUBLIMATION
+  CUTTING_FINISHING
+  READY
+  COMPLETED
+}
+
 enum PaymentMethod {
   CASH
   TRANSFER
@@ -161,6 +171,7 @@ model User {
   purchaseOrders     PurchaseOrder[]
   customers          Customer[]
   managedBranches    Branch[]            @relation("BranchManager")
+  orderNotes         OrderNote[]
 
   // ── Optimization indexes ──
   @@index([companyId, role], map: "idx_User_company_role")
@@ -635,6 +646,9 @@ model Order {
   production    ProductionJob[]
   notifications Notification[]
   auditLogs     AuditLog[]      @relation("OrderAudit")
+  history       OrderHistory[]
+  orderNotes    OrderNote[]
+  productionTasks ProductionTask[]
 
   @@unique([companyId, orderNumber], map: "uq_Order_company_number")
   @@index([companyId, status], map: "idx_Order_company_status")
@@ -678,6 +692,63 @@ model OrderItem {
   @@index([techniqueId], map: "idx_OrderItem_techniqueId")
   @@index([customization], type: Gin, map: "idx_OrderItem_customization_gin")
   @@map("OrderItem")
+}
+
+// ──────────────────────────────────────────────
+// Order History — tracks status changes
+// ──────────────────────────────────────────────
+
+model OrderHistory {
+  id        String   @id @default(cuid())
+  orderId   String
+  status    OrderStatus
+  note      String?
+  createdAt DateTime @default(now())
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId], map: "idx_OrderHistory_orderId")
+  @@index([createdAt], map: "idx_OrderHistory_createdAt")
+  @@map("OrderHistory")
+}
+
+model ProductionTask {
+  id           String               @id @default(cuid())
+  companyId    String?
+  orderId      String
+  status       ProductionTaskStatus @default(PENDING)
+  priority     String               @default("medium")
+  assignedTo   String?
+  dueDate      DateTime?
+  createdAt    DateTime             @default(now())
+  updatedAt    DateTime             @updatedAt
+
+  order        Order                @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId], map: "idx_ProductionTask_orderId")
+  @@index([status], map: "idx_ProductionTask_status")
+  @@map("ProductionTask")
+}
+
+// ──────────────────────────────────────────────
+// Order Notes — internal and customer comments
+// ──────────────────────────────────────────────
+
+model OrderNote {
+  id        String   @id @default(cuid())
+  orderId   String
+  userId    String
+  content   String
+  isInternal Boolean @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id])
+
+  @@index([orderId], map: "idx_OrderNote_orderId")
+  @@index([userId], map: "idx_OrderNote_userId")
+  @@map("OrderNote")
 }
 
 // ──────────────────────────────────────────────

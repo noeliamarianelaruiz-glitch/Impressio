@@ -4,6 +4,7 @@ import { QuickActions } from "@/components/dashboard/QuickActions"
 import { PageHeader } from "@/components/dashboard/PageHeader"
 import { DashboardCard } from "@/components/dashboard/DashboardCard"
 import { KanbanBoard } from "@/components/kanban/KanbanBoard"
+import Link from "next/link"
 
 export const metadata = {
   title: "Dashboard",
@@ -108,7 +109,7 @@ export default async function DashboardPage() {
           <DashboardCard>
             <div className="space-y-3">
               {recentOrders.map((order) => (
-                <div key={order.id} className="flex items-center justify-between rounded-lg px-3 py-2 hover:bg-accent/50">
+                <Link key={order.id} href={`/dashboard/orders/${order.id}`} className="flex items-center justify-between rounded-lg px-3 py-2 hover:bg-accent/50">
                   <div>
                     <p className="text-sm font-medium text-foreground">{order.orderNumber}</p>
                     <p className="text-xs text-muted-foreground">{order.customerName}</p>
@@ -117,7 +118,7 @@ export default async function DashboardPage() {
                     <span className="text-sm font-medium text-foreground">{order.totalAmount}</span>
                     <span className="text-[10px] text-muted-foreground">{order.date}</span>
                   </div>
-                </div>
+                </Link>
               ))}
             </div>
           </DashboardCard>

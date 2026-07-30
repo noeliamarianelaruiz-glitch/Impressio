@@ -5,17 +5,17 @@ import { PageHeader } from "@/components/dashboard/PageHeader"
 import { KanbanBoard, type KanbanColumnData } from "@/components/kanban/KanbanBoard"
 import type { OrderStatus } from "@prisma/client"
 
+export const metadata = {
+  title: "Production Pipeline",
+  description: "Manage production workflow with Kanban board",
+}
+
 const statusMap: Record<string, OrderStatus> = {
   pending: "PENDING",
   confirmed: "CONFIRMED",
   production: "IN_PRODUCTION",
   printing: "PRINTING",
   ready: "READY",
-}
-
-export const metadata = {
-  title: "Production Pipeline",
-  description: "Manage production workflow with Kanban board",
 }
 
 export default async function KanbanPage() {
@@ -33,14 +33,6 @@ export default async function KanbanPage() {
       createdAt: true,
     },
   })
-
-  const statusMap: Record<string, OrderStatus> = {
-    pending: "PENDING",
-    confirmed: "CONFIRMED",
-    production: "IN_PRODUCTION",
-    printing: "PRINTING",
-    ready: "READY",
-  }
 
   const columnConfig = [
     { id: "pending", title: "Pending", color: "bg-yellow-500", status: "PENDING" as OrderStatus },

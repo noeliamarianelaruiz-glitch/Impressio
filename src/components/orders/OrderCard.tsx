@@ -19,7 +19,7 @@ interface OrderCardProps {
 
 export function OrderCard({ order }: OrderCardProps) {
   return (
-    <Link href={`/orders/${order.id}`} className="block">
+    <Link href={`/dashboard/orders/${order.id}`} className="block">
       <div className="rounded-xl border border-white/10 bg-white/5 p-4 backdrop-blur-xl transition-colors hover:bg-accent/30 dark:border-white/5 dark:bg-white/[0.03]">
         <div className="flex items-start justify-between">
           <div>
