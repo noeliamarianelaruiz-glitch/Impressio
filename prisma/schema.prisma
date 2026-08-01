@@ -68,10 +68,12 @@ enum PaymentMethod {
 
 enum PaymentStatus {
   PENDING
-  COMPLETED
-  FAILED
+  RECEIPT_UPLOADED
+  UNDER_REVIEW
+  PAID
+  REJECTED
   REFUNDED
-  PARTIAL
+  CANCELLED
 }
 
 enum InvoiceStatus {
@@ -172,6 +174,9 @@ model User {
   customers          Customer[]
   managedBranches    Branch[]            @relation("BranchManager")
   orderNotes         OrderNote[]
+  assignedConversations Conversation[]   @relation("ConversationAssignee")
+  sentMessages         Message[]         @relation("MessageSender")
+  reviewedPayments     Payment[]         @relation("PaymentReviewer")
 
   // ── Optimization indexes ──
   @@index([companyId, role], map: "idx_User_company_role")
@@ -294,6 +299,7 @@ model Company {
   printingTechniques PrintingTechnique[]
   productionJobs     ProductionJob[]
   uploadedFiles      UploadedFile[]
+  conversations      Conversation[]
 
   @@unique([slug], map: "uq_Company_slug")
   @@index([ownerId], map: "idx_Company_ownerId")
@@ -352,6 +358,7 @@ model Customer {
   orders            Order[]
   invoices          Invoice[]
   payments          Payment[]
+  conversations     Conversation[]
 
   @@index([companyId, email], map: "idx_Customer_company_email")
   @@index([companyId, documentId], map: "idx_Customer_company_documentId")
@@ -649,6 +656,7 @@ model Order {
   history       OrderHistory[]
   orderNotes    OrderNote[]
   productionTasks ProductionTask[]
+  conversations   Conversation[]
 
   @@unique([companyId, orderNumber], map: "uq_Order_company_number")
   @@index([companyId, status], map: "idx_Order_company_status")
@@ -925,28 +933,35 @@ model PurchaseOrderItem {
 // ──────────────────────────────────────────────
 
 model Payment {
-  id            String        @id @default(cuid())
-  orderId       String        @unique
-  companyId     String
-  clientId      String
-  method        PaymentMethod
-  status        PaymentStatus @default(PENDING)
-  amount        Decimal
-  currency      String        @default("ARS")
-  transactionId String?
-  reference     String?
-  paidAt        DateTime?
-  notes         String?
-  createdAt     DateTime      @default(now())
+  id                   String        @id @default(cuid())
+  orderId              String        @unique
+  companyId            String
+  clientId             String
+  method               PaymentMethod
+  provider             String?
+  status               PaymentStatus @default(PENDING)
+  amount               Decimal
+  currency             String        @default("ARS")
+  transactionReference String?
+  reference            String?
+  receiptUrl           String?
+  paidAt               DateTime?
+  reviewedById         String?
+  reviewedAt           DateTime?
+  notes                String?
+  createdAt            DateTime      @default(now())
+  updatedAt            DateTime      @updatedAt
 
-  order   Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  company Company  @relation(fields: [companyId], references: [id])
-  client  Customer @relation(fields: [clientId], references: [id])
-  invoice Invoice?
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  company   Company  @relation(fields: [companyId], references: [id])
+  client    Customer @relation(fields: [clientId], references: [id])
+  invoice   Invoice?
+  reviewer  User?    @relation("PaymentReviewer", fields: [reviewedById], references: [id])
 
   @@index([companyId, clientId], map: "idx_Payment_company_client")
   @@index([companyId, status], map: "idx_Payment_company_status")
   @@index([clientId], map: "idx_Payment_clientId")
+  @@index([reviewedById], map: "idx_Payment_reviewedById")
   @@map("Payment")
 }
 
@@ -1131,4 +1146,50 @@ model CompanySetting {
 
   @@unique([companyId, key], map: "uq_CompanySetting_company_key")
   @@map("CompanySetting")
+}
+
+// ──────────────────────────────────────────────
+// Messaging — Conversations & Messages
+// ──────────────────────────────────────────────
+
+model Conversation {
+  id            String    @id @default(cuid())
+  subject       String?
+  companyId     String
+  customerId    String?
+  assignedToId  String?
+  orderId       String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  company       Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  customer      Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  assignedTo    User?     @relation("ConversationAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
+  order         Order?    @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  messages      Message[]
+
+  @@index([companyId, updatedAt], map: "idx_Conversation_company_updated")
+  @@index([customerId], map: "idx_Conversation_customerId")
+  @@index([assignedToId], map: "idx_Conversation_assignedToId")
+  @@index([orderId], map: "idx_Conversation_orderId")
+  @@map("Conversation")
+}
+
+model Message {
+  id             String   @id @default(cuid())
+  conversationId String
+  senderId       String
+  content        String
+  fileUrl        String?
+  fileName       String?
+  fileSize       Int?
+  read           Boolean  @default(false)
+  createdAt      DateTime @default(now())
+
+  conversation  Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender        User     @relation("MessageSender", fields: [senderId], references: [id])
+
+  @@index([conversationId, createdAt], map: "idx_Message_conversation_created")
+  @@index([senderId], map: "idx_Message_senderId")
+  @@map("Message")
 }

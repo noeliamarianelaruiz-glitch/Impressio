@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { signOut } from "@/auth"
+import { signOut } from "next-auth/react"
 import { toast } from "sonner"
 import { useRouter } from "next/navigation"
 
